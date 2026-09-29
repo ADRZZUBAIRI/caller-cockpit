@@ -58,39 +58,78 @@ body {
 .w-full { width: 100%; }
 .flex-1 { flex: 1; }
 
-/* Mandatory Auth Gate Overlay (Full Screen Security Barrier) */
+/* ========================================================= */
+/* MANDATORY AUTH GATE OVERLAY (FULL SCREEN CARD) */
+/* ========================================================= */
 .auth-gate-overlay {
   position: fixed;
-  inset: 0;
-  background: radial-gradient(circle at 50% 30%, #150f24 0%, #070709 80%);
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  background: radial-gradient(circle at 50% 35%, #180e2b 0%, #070709 85%) !important;
+  z-index: 99999;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
   padding: 20px;
 }
 
 .auth-gate-card {
-  background: var(--bg-surface);
-  border: 1px solid rgba(163, 53, 249, 0.25);
+  background: #0e0e14 !important;
+  border: 1px solid rgba(163, 53, 249, 0.35) !important;
   border-radius: var(--radius-lg);
-  padding: 32px;
+  padding: 36px 32px;
   width: 100%;
   max-width: 440px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.9), 0 0 30px rgba(163, 53, 249, 0.1);
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.95), 0 0 40px rgba(163, 53, 249, 0.15);
+  display: flex;
+  flex-direction: column;
 }
 
 .auth-gate-brand {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .auth-gate-toggle-box {
   border-top: 1px solid var(--border-subtle);
   padding-top: 16px;
-  margin-top: 8px;
+  margin-top: 10px;
+}
+
+/* Form Styling */
+.form-group {
+  margin-bottom: 12px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 5px;
+}
+
+.form-group input, .form-group select, .form-group textarea, .gate-subfields input, .gate-subfields select {
+  width: 100%;
+  background: #070709 !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #f8fafc !important;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus, .gate-subfields input:focus, .gate-subfields select:focus {
+  border-color: var(--color-accent) !important;
+  box-shadow: 0 0 10px rgba(163, 53, 249, 0.25);
 }
 
 /* Top Navigation Bar */
@@ -223,15 +262,10 @@ body {
   font-size: 11.5px;
   font-family: 'JetBrains Mono', monospace;
   color: var(--text-muted);
-  cursor: pointer;
   padding: 4px 9px;
   background: var(--bg-obsidian);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-}
-
-.cloud-status:hover {
-  border-color: var(--color-accent);
 }
 
 .status-dot {
@@ -683,21 +717,6 @@ body {
   padding-left: 24px;
 }
 
-.gate-subfields input, .gate-subfields select, .form-group input, .form-group select, .form-group textarea {
-  width: 100%;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  color: var(--text-primary);
-  padding: 7px 10px;
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  outline: none;
-}
-
-.gate-subfields input:focus, .gate-subfields select:focus, .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
-  border-color: var(--border-focus);
-}
-
 .appointment-scheduling-box {
   background: var(--bg-obsidian);
   border: 1px solid var(--border-subtle);
@@ -711,14 +730,6 @@ body {
   gap: 8px;
 }
 
-.form-group label {
-  display: block;
-  font-size: 11px;
-  color: var(--text-muted);
-  margin-bottom: 4px;
-  font-weight: 600;
-}
-
 /* Buttons */
 .btn-primary {
   background: var(--color-accent);
@@ -726,7 +737,7 @@ body {
   border: none;
   font-weight: 700;
   font-size: 12.5px;
-  padding: 9px 16px;
+  padding: 10px 16px;
   border-radius: var(--radius-md);
   cursor: pointer;
   display: inline-flex;
@@ -765,7 +776,7 @@ body {
   background: transparent;
   border: 1px solid var(--border-subtle);
   color: var(--text-muted);
-  padding: 7px 14px;
+  padding: 8px 14px;
   border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 12px;
