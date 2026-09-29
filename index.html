@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebSmitherz Caller & Closer Cockpit</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <!-- Supabase JS CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-obsidian text-slate">
+
+  <!-- Top Navigation Bar -->
+  <header class="top-nav">
+    <div class="nav-left">
+      <div class="brand-logo">
+        <svg class="brand-bolt" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+        </svg>
+        <span class="brand-text">Web<span class="brand-highlight">Smitherz</span></span>
+        <span class="brand-badge">CALLER COCKPIT</span>
+      </div>
+      <div class="view-toggles">
+        <button id="view-caller-btn" class="toggle-tab active" onclick="switchView('caller')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+          Cold Caller Studio
+        </button>
+        <button id="view-closer-btn" class="toggle-tab" onclick="switchView('closer')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          Closer Queue & Dossiers <span id="pending-appointments-count" class="badge-count">0</span>
+        </button>
+        <button id="view-leads-btn" class="toggle-tab" onclick="switchView('leads')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+          Lead Pipeline & CSV Import
+        </button>
+      </div>
+    </div>
+
+    <div class="nav-right">
+      <div id="auth-logged-out-box" style="display:flex; align-items:center; gap:8px;">
+        <button class="btn-sm btn-ghost" onclick="openAuthModal('login')">Sign In</button>
+        <button class="btn-sm btn-primary" onclick="openAuthModal('signup')">Create Caller Account</button>
+      </div>
+
+      <div id="auth-logged-in-box" style="display:none; align-items:center; gap:10px;">
+        <div class="user-selector">
+          <span class="pill-locked pill-unlocked" id="active-user-badge" style="font-size:11px; padding:3px 8px;">👤 <b id="user-display-name">Asma</b> (<span id="user-display-role">caller</span>)</span>
+        </div>
+        <button class="btn-sm btn-ghost" onclick="handleSignOut()">Sign Out</button>
+      </div>
+
+      <div class="cloud-status" id="cloud-status-indicator" onclick="openConfigModal()" title="Supabase Cloud Live Status">
+        <span class="status-dot disconnected" id="status-dot"></span>
+        <span id="status-text">Connecting...</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main View Container -->
+  <main class="cockpit-main">
+
+    <!-- ======================================================== -->
+    <!-- VIEW 1: COLD CALLER STUDIO & QUALIFICATION GATE -->
+    <!-- ======================================================== -->
+    <section id="caller-view" class="view-panel active">
+      <div class="caller-grid">
+        
+        <!-- Left: Quick Lead Selector & Call Stats -->
+        <div class="col-lead-queue">
+          <div class="panel-card">
+            <div class="panel-header">
+              <h3>Today's Call Queue</h3>
+              <button class="btn-sm btn-ghost" onclick="openAddLeadModal()">+ Add Lead</button>
+            </div>
+
+            <!-- Stats Ribbon -->
+            <div class="stats-mini-bar">
+              <div class="mini-stat">
+                <span class="stat-num" id="stat-dials">0</span>
+                <span class="stat-label">Calls Today</span>
+              </div>
+              <div class="mini-stat">
+                <span class="stat-num" id="stat-qualified">0</span>
+                <span class="stat-label">Qualified</span>
+              </div>
+              <div class="mini-stat">
+                <span class="stat-num text-accent" id="stat-booked">0</span>
+                <span class="stat-label">Booked</span>
+              </div>
+            </div>
+
+            <!-- Search / Filter -->
+            <div class="queue-search-wrap">
+              <input type="text" id="queue-search-input" placeholder="Search business or phone..." oninput="filterQueue(this.value)">
+            </div>
+
+            <!-- Scrollable Lead Queue List -->
+            <div class="queue-list" id="queue-list-container">
+              <div class="empty-state">Loading leads from Supabase...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Center: Interactive Call Battlecard & Objection Handler -->
+        <div class="col-battlecard">
+          <div class="panel-card">
+            <div class="panel-header">
+              <div class="flex-row items-center gap-2">
+                <span class="live-pulse-badge">LIVE CALL SCRIPT</span>
+                <span class="text-xs text-muted">WebSmitherz Systems Engineering Standard</span>
+              </div>
+              <div class="call-timer-box">
+                <span id="call-timer">00:00</span>
+                <button id="call-timer-btn" class="btn-timer" onclick="toggleCallTimer()">Start Call</button>
+              </div>
+            </div>
+
+            <!-- Active Lead Info Header -->
+            <div class="active-lead-banner" id="active-lead-banner">
+              <div>
+                <h2 id="active-biz-name" class="font-syne">Select a Lead to Call</h2>
+                <div class="lead-meta-row" id="active-lead-meta">
+                  <span>Phone: <b id="active-biz-phone">—</b></span>
+                  <span>Contact: <b id="active-biz-contact">—</b></span>
+                  <span>Location: <b id="active-biz-city">—</b></span>
+                </div>
+              </div>
+              <div class="banner-actions">
+                <a id="active-biz-tel-link" href="#" class="btn-call-action">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                  Dial Now
+                </a>
+              </div>
+            </div>
+
+            <!-- Script Steps & Stages -->
+            <div class="script-flow-container">
+              
+              <!-- Step 1: The Permitted Opener (BANS "I have customers for you") -->
+              <div class="script-card step-card">
+                <div class="step-num-badge">1</div>
+                <div class="step-body">
+                  <h4>The Forensic Opener <span class="badge-danger">Banned: Never say "I have customers for you"</span></h4>
+                  <p class="script-text">
+                    "Hi <span class="highlight-var" id="var-contact-name">[Owner Name]</span>, this is <span class="highlight-var" id="var-caller-name">Asma</span> with WebSmitherz Systems. I’m looking at your website on my phone right now and noticed two technical friction points on mobile phones that are costing you direct estimate calls. Do you have 60 seconds?"
+                  </p>
+                </div>
+              </div>
+
+              <!-- Step 2: The Specific Diagnostic Finding -->
+              <div class="script-card step-card">
+                <div class="step-num-badge">2</div>
+                <div class="step-body">
+                  <h4>The Specific Friction Diagnosis</h4>
+                  <p class="script-text">
+                    "When homeowners look for a contractor on their phone, your phone number isn't a one-tap button and the estimate form takes over 4 seconds to load. Homeowners just back out and call the next contractor on Google."
+                  </p>
+                  <p class="script-prompt">
+                    Ask: <b>"Right now, are you guys relying mostly on word-of-mouth, or are you actively trying to pick up 3 to 5 more jobs a month from Google?"</b>
+                  </p>
+                </div>
+              </div>
+
+              <!-- Step 3: Interactive Objection Handlers -->
+              <div class="objection-tabs-box">
+                <div class="objection-tabs-header">
+                  <span>Common Contractor Pushbacks (Click to View Response):</span>
+                </div>
+                <div class="objection-pills">
+                  <button class="obj-pill active" onclick="showObjection('busy')">"I'm busy / On a job site"</button>
+                  <button class="obj-pill" onclick="showObjection('send_email')">"Just send me an email"</button>
+                  <button class="obj-pill" onclick="showObjection('have_a_guy')">"We already have a web guy"</button>
+                  <button class="obj-pill" onclick="showObjection('cost')">"How much does this cost?"</button>
+                  <button class="obj-pill" onclick="showObjection('not_interested')">"Not interested"</button>
+                </div>
+
+                <div class="objection-content-box" id="objection-response-text">
+                  <b>Response to "I'm busy / On a job site":</b><br>
+                  "Totally understand you're in the field, <span class="var-name">[Name]</span>. That’s exactly why I called quickly. We generated a 1-Page Forensic Mobile Latency & Map Audit for your company. I want to have our systems engineer, Abdul, review the 2-minute breakdown with you when you're in front of a computer. Is tomorrow at 10 AM or 4 PM better for a quick 10-minute briefing?"
+                </div>
+              </div>
+
+              <!-- Step 4: The Clean Handoff Agreement -->
+              <div class="script-card step-card">
+                <div class="step-num-badge">3</div>
+                <div class="step-body">
+                  <h4>The Clear Authority Handoff</h4>
+                  <p class="script-text">
+                    "Abdul, our systems engineer, will pull up your live mobile teardown and walk you through the exact bottleneck in 10 minutes. What's the best direct email where we can send the calendar invite and the 1-page PDF audit?"
+                  </p>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Mandatory 4-Point Qualification Gate & Booking -->
+        <div class="col-qualification">
+          <div class="panel-card">
+            <div class="panel-header">
+              <h3>Mandatory Qualification Gate</h3>
+              <span class="pill-locked" id="gate-lock-status">Locked (0/4 Verified)</span>
+            </div>
+
+            <p class="text-xs text-muted mb-3">
+              Closers will not accept appointments without all 4 qualification checkboxes completed and verified.
+            </p>
+
+            <form id="qualification-form" onsubmit="handleBookAppointment(event)">
+              
+              <!-- Gate Item 1: Decision Maker -->
+              <div class="gate-item">
+                <label class="gate-checkbox-label">
+                  <input type="checkbox" id="gate-decision-maker" onchange="validateGate()">
+                  <span class="gate-title">1. Decision Maker Confirmed</span>
+                </label>
+                <div class="gate-subfields">
+                  <input type="text" id="qual-contact-name" placeholder="Full Owner / Manager Name *" required oninput="validateGate()">
+                  <input type="tel" id="qual-contact-phone" placeholder="Direct Cell Phone Number *" required oninput="validateGate()">
+                </div>
+              </div>
+
+              <!-- Gate Item 2: Specific Bottleneck Identified -->
+              <div class="gate-item">
+                <label class="gate-checkbox-label">
+                  <input type="checkbox" id="gate-bottleneck" onchange="validateGate()">
+                  <span class="gate-title">2. Friction Bottleneck Admitted</span>
+                </label>
+                <div class="gate-subfields">
+                  <select id="qual-bottleneck-select" required onchange="validateGate()">
+                    <option value="">-- Select Specific Pain Point Admitted --</option>
+                    <option value="Relies 100% on word of mouth / dry pipeline">Relies 100% on word-of-mouth / dry pipeline</option>
+                    <option value="Unclickable phone number on mobile phones">Unclickable phone number on mobile phones</option>
+                    <option value="5s+ mobile load latency causing lost leads">5s+ mobile load latency causing lost leads</option>
+                    <option value="Not ranking in Google Local 3-Pack Maps">Not ranking in Google Local 3-Pack Maps</option>
+                    <option value="Old website built years ago with zero inbound calls">Old website built years ago with zero inbound calls</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Gate Item 3: Project Capacity / Commercial Intent -->
+              <div class="gate-item">
+                <label class="gate-checkbox-label">
+                  <input type="checkbox" id="gate-capacity" onchange="validateGate()">
+                  <span class="gate-title">3. Job Capacity / Growth Intent</span>
+                </label>
+                <div class="gate-subfields">
+                  <select id="qual-capacity-select" required onchange="validateGate()">
+                    <option value="">-- Confirm Capacity --</option>
+                    <option value="Actively looking for 3 to 5 new jobs/month">Actively looking for 3 to 5 new jobs/month</option>
+                    <option value="Looking for 5 to 10+ jobs/month (Scaling)">Looking for 5 to 10+ jobs/month (Scaling)</option>
+                    <option value="Commercial / Large contract focus">Commercial / Large contract focus</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Gate Item 4: Agreed Deliverable & Verified Email -->
+              <div class="gate-item">
+                <label class="gate-checkbox-label">
+                  <input type="checkbox" id="gate-deliverable" onchange="validateGate()">
+                  <span class="gate-title">4. Agreed to Review 1-Page Audit</span>
+                </label>
+                <div class="gate-subfields">
+                  <input type="email" id="qual-contact-email" placeholder="Confirmed Email for Calendar & PDF *" required oninput="validateGate()">
+                </div>
+              </div>
+
+              <!-- Scheduling Appointment Fields -->
+              <div class="appointment-scheduling-box">
+                <h4 class="font-syne text-sm mb-2">Book Appointment for Closer</h4>
+                
+                <div class="form-row">
+                  <div class="form-group flex-1">
+                    <label>Date & Time (Prospect's Local Time):</label>
+                    <input type="datetime-local" id="qual-appt-datetime" required onchange="validateGate()">
+                  </div>
+                  <div class="form-group" style="width: 90px;">
+                    <label>Timezone:</label>
+                    <select id="qual-appt-tz">
+                      <option value="EST">EST</option>
+                      <option value="CST" selected>CST</option>
+                      <option value="MST">MST</option>
+                      <option value="PST">PST</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="form-group mt-2">
+                  <label>Assign to Closer:</label>
+                  <select id="qual-assigned-closer">
+                    <option value="Abdul">Abdul (Senior Systems Engineer)</option>
+                    <option value="Adil">Adil (Systems Consultant)</option>
+                  </select>
+                </div>
+
+                <div class="form-group mt-2">
+                  <label>Call Notes / Context for Closer:</label>
+                  <textarea id="qual-call-notes" rows="2" placeholder="e.g. Jenry mentioned word-of-mouth is slowing down, wants to see why mobile calls are dropping."></textarea>
+                </div>
+
+                <button type="submit" id="btn-submit-appointment" class="btn-primary w-full mt-3 btn-disabled" disabled>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                  Lock & Book Qualified Appointment
+                </button>
+              </div>
+
+            </form>
+
+            <!-- Quick Disposition Actions if Call didn't book -->
+            <div class="quick-dispositions mt-4">
+              <span class="text-xs text-muted block mb-1">If not booked, log disposition:</span>
+              <div class="dispo-btn-grid">
+                <button type="button" class="btn-dispo" onclick="quickLogDisposition('Voicemail')">Voicemail</button>
+                <button type="button" class="btn-dispo" onclick="quickLogDisposition('Call Back')">Call Back Later</button>
+                <button type="button" class="btn-dispo" onclick="quickLogDisposition('Not Interested')">Not Interested</button>
+                <button type="button" class="btn-dispo" onclick="quickLogDisposition('Disqualified')">Wrong Number / Disqualified</button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- VIEW 2: CLOSER QUEUE & 1-PAGE DOSSIERS -->
+    <!-- ======================================================== -->
+    <section id="closer-view" class="view-panel">
+      <div class="closer-layout">
+        
+        <div class="closer-header-bar">
+          <div>
+            <h2 class="font-syne text-xl">Closer Execution Command</h2>
+            <p class="text-xs text-muted">All appointments booked by callers with mandatory 4-point qualification dossiers.</p>
+          </div>
+          <div class="closer-filters">
+            <button class="filter-pill active" onclick="filterAppointments('all')">All Appointments</button>
+            <button class="filter-pill" onclick="filterAppointments('Scheduled')">Upcoming / Scheduled</button>
+            <button class="filter-pill" onclick="filterAppointments('Showed / Pitched')">Pitched</button>
+            <button class="filter-pill" onclick="filterAppointments('Won / Closed')">Won / Closed</button>
+          </div>
+        </div>
+
+        <div class="closer-cards-grid" id="closer-appointments-grid">
+          <div class="empty-state">No appointments booked yet.</div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- VIEW 3: LEAD PIPELINE & CSV INGESTOR -->
+    <!-- ======================================================== -->
+    <section id="leads-view" class="view-panel">
+      <div class="leads-layout">
+        
+        <div class="leads-header-bar">
+          <div>
+            <h2 class="font-syne text-xl">Cold Call Lead Pipeline</h2>
+            <p class="text-xs text-muted">Manage, assign, and upload CSV lists of contractors and trade leads.</p>
+          </div>
+          <div class="leads-actions">
+            <button class="btn-secondary" onclick="openCsvImportModal()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              Import CSV Leads
+            </button>
+            <button class="btn-primary" onclick="openAddLeadModal()">+ Add Single Lead</button>
+          </div>
+        </div>
+
+        <div class="leads-table-container">
+          <table class="data-table" id="leads-data-table">
+            <thead>
+              <tr>
+                <th>Business Name</th>
+                <th>Contact</th>
+                <th>Phone</th>
+                <th>City / State</th>
+                <th>Status</th>
+                <th>Assigned Caller</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="leads-table-body">
+              <tr>
+                <td colspan="7" class="text-center py-6">Loading leads from Supabase...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ======================================================== -->
+  <!-- MODALS -->
+  <!-- ======================================================== -->
+
+  <!-- Supabase Config Modal -->
+  <div class="modal-backdrop" id="config-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="font-syne">Supabase Cloud Connection</h3>
+        <button class="modal-close" onclick="closeConfigModal()">&times;</button>
+      </div>
+      <p class="text-xs text-muted mb-4">
+        Enter your free Supabase project URL and anon public API key. Data is stored securely in your browser and synced directly to Supabase in real-time.
+      </p>
+      <form onsubmit="saveSupabaseConfig(event)">
+        <div class="form-group mb-3">
+          <label>Supabase Project URL:</label>
+          <input type="url" id="cfg-supabase-url" placeholder="https://xyzcompany.supabase.co" required>
+        </div>
+        <div class="form-group mb-4">
+          <label>Supabase Anon Public API Key:</label>
+          <input type="text" id="cfg-supabase-key" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." required>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-ghost" onclick="closeConfigModal()">Cancel</button>
+          <button type="submit" class="btn-primary">Save & Connect Cloud</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Add Lead Modal -->
+  <div class="modal-backdrop" id="add-lead-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="font-syne">Add New Cold Lead</h3>
+        <button class="modal-close" onclick="closeAddLeadModal()">&times;</button>
+      </div>
+      <form onsubmit="handleCreateLead(event)">
+        <div class="form-group mb-2">
+          <label>Business / Company Name *</label>
+          <input type="text" id="new-lead-biz" placeholder="e.g. Lone Star Roofing TX" required>
+        </div>
+        <div class="form-group mb-2">
+          <label>Contact / Owner Name</label>
+          <input type="text" id="new-lead-contact" placeholder="e.g. John Miller">
+        </div>
+        <div class="form-row mb-2">
+          <div class="form-group flex-1">
+            <label>Phone Number *</label>
+            <input type="tel" id="new-lead-phone" placeholder="e.g. (214) 555-0199" required>
+          </div>
+          <div class="form-group flex-1">
+            <label>Website URL</label>
+            <input type="text" id="new-lead-web" placeholder="e.g. lonestarroofing.com">
+          </div>
+        </div>
+        <div class="form-row mb-3">
+          <div class="form-group flex-1">
+            <label>City</label>
+            <input type="text" id="new-lead-city" placeholder="e.g. Dallas">
+          </div>
+          <div class="form-group flex-1">
+            <label>State</label>
+            <input type="text" id="new-lead-state" placeholder="e.g. TX">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn-ghost" onclick="closeAddLeadModal()">Cancel</button>
+          <button type="submit" class="btn-primary">Add to Call Queue</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- CSV Import Modal -->
+  <div class="modal-backdrop" id="csv-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="font-syne">Import CSV Leads</h3>
+        <button class="modal-close" onclick="closeCsvModal()">&times;</button>
+      </div>
+      <p class="text-xs text-muted mb-3">
+        Upload a CSV file containing columns like: <code>Business Name, Phone, Contact Name, Website, City, State</code>.
+      </p>
+      <input type="file" id="csv-file-input" accept=".csv" class="mb-4">
+      <div class="modal-footer">
+        <button type="button" class="btn-ghost" onclick="closeCsvModal()">Cancel</button>
+        <button type="button" class="btn-primary" onclick="processCsvUpload()">Upload & Ingest Leads</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Closer Dossier & Update Modal -->
+  <div class="modal-backdrop" id="dossier-modal">
+    <div class="modal-card modal-lg">
+      <div class="modal-header">
+        <h3 class="font-syne" id="dossier-title">Appointment Dossier</h3>
+        <button class="modal-close" onclick="closeDossierModal()">&times;</button>
+      </div>
+      <div id="dossier-content" class="dossier-body">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Caller Auth & Sign Up Modal -->
+  <div class="modal-backdrop" id="auth-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="font-syne" id="auth-modal-title">Caller Portal Sign In</h3>
+        <button class="modal-close" onclick="closeAuthModal()">&times;</button>
+      </div>
+      <p class="text-xs text-muted mb-3" id="auth-modal-sub">
+        Sign in to log all your calls, claims, and appointments in real-time.
+      </p>
+      
+      <form id="auth-form" onsubmit="handleAuthSubmit(event)">
+        <div class="form-group mb-2" id="auth-name-field" style="display:none;">
+          <label>Your Full Name *</label>
+          <input type="text" id="auth-name" placeholder="e.g. Asma Khan">
+        </div>
+
+        <div class="form-group mb-2">
+          <label>Email Address *</label>
+          <input type="email" id="auth-email" placeholder="name@websmitherz.com" required>
+        </div>
+
+        <div class="form-group mb-2">
+          <label>Password *</label>
+          <input type="password" id="auth-password" placeholder="••••••••" required minlength="6">
+        </div>
+
+        <div class="form-group mb-3" id="auth-role-field" style="display:none;">
+          <label>Your Team Role *</label>
+          <select id="auth-role">
+            <option value="caller" selected>Cold Caller / SDR</option>
+            <option value="closer">Closer / Systems Consultant</option>
+          </select>
+        </div>
+
+        <div class="modal-footer" style="display:flex; flex-direction:column; gap:8px;">
+          <button type="submit" id="auth-submit-btn" class="btn-primary w-full">Sign In to Cockpit</button>
+          <button type="button" class="btn-ghost w-full" id="auth-toggle-mode-btn" onclick="toggleAuthMode()">Don't have an account? Create one</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
