@@ -530,7 +530,7 @@
       <form id="auth-gate-form" onsubmit="handleAuthSubmit(event)">
         <div class="form-group mb-3" id="auth-name-group" style="display: none;">
           <label>Your Full Name *</label>
-          <input type="text" id="auth-name-input" placeholder="e.g. Asma Khan">
+          <input type="text" id="auth-name-input" placeholder="e.g. Alex Morgan">
         </div>
 
         <div class="form-group mb-3">
@@ -597,8 +597,9 @@
 
       <div class="nav-right">
         <div class="user-selector">
-          <span class="pill-locked pill-unlocked" id="active-user-badge" style="font-size:11px; padding:3px 8px;">
-            👤 <b id="user-display-name">Agent</b> (<span id="user-display-role">caller</span>)
+          <span class="pill-locked pill-unlocked" id="active-user-badge" style="font-size:11px; padding:3px 8px; display:inline-flex; align-items:center; gap:4px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H4a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            <b id="user-display-name">Agent</b> (<span id="user-display-role">caller</span>)
           </span>
         </div>
         
@@ -697,7 +698,7 @@
                   <div class="step-body">
                     <h4>The Forensic Opener <span class="badge-danger">Banned: Never say "I have customers for you"</span></h4>
                     <p class="script-text">
-                      "Hi <span class="highlight-var" id="var-contact-name">[Owner Name]</span>, this is <span class="highlight-var" id="var-caller-name">Asma</span> with WebSmitherz Systems. I’m looking at your website on my phone right now and noticed two technical friction points on mobile phones that are costing you direct estimate calls. Do you have 60 seconds?"
+                      "Hi <span class="highlight-var" id="var-contact-name">[Owner Name]</span>, this is <span class="highlight-var" id="var-caller-name">[Caller Name]</span> with WebSmitherz Systems. I’m looking at your website on my phone right now and noticed two technical friction points on mobile phones that are costing you direct estimate calls. Do you have 60 seconds?"
                     </p>
                   </div>
                 </div>
@@ -740,7 +741,7 @@
                   <div class="step-body">
                     <h4>The Clear Authority Handoff</h4>
                     <p class="script-text">
-                      "Abdul, our systems engineer, will pull up your live mobile teardown and walk you through the exact bottleneck in 10 minutes. What's the best direct email where we can send the calendar invite and the 1-page PDF audit?"
+                      "Our senior systems engineer will pull up your live mobile teardown and walk you through the exact bottleneck in 10 minutes. What's the best direct email where we can send the calendar invite and the 1-page PDF audit?"
                     </p>
                   </div>
                 </div>
@@ -843,14 +844,14 @@
                   <div class="form-group mt-2">
                     <label>Assign to Closer:</label>
                     <select id="qual-assigned-closer">
-                      <option value="Abdul">Abdul (Senior Systems Engineer)</option>
-                      <option value="Adil">Adil (Systems Consultant)</option>
+                      <option value="Closer 1">Closer 1 (Senior Systems Engineer)</option>
+                      <option value="Closer 2">Closer 2 (Systems Consultant)</option>
                     </select>
                   </div>
 
                   <div class="form-group mt-2">
                     <label>Call Notes / Context for Closer:</label>
-                    <textarea id="qual-call-notes" rows="2" placeholder="e.g. Jenry mentioned word-of-mouth is slowing down, wants to see why mobile calls are dropping."></textarea>
+                    <textarea id="qual-call-notes" rows="2" placeholder="e.g. Prospect mentioned word-of-mouth is slowing down, wants to see why mobile calls are dropping."></textarea>
                   </div>
 
                   <button type="submit" id="btn-submit-appointment" class="btn-primary w-full mt-3 btn-disabled" disabled>
@@ -961,26 +962,26 @@
       <form onsubmit="handleCreateLead(event)">
         <div class="form-group mb-2">
           <label>Business / Company Name *</label>
-          <input type="text" id="new-lead-biz" placeholder="e.g. Lone Star Roofing TX" required>
+          <input type="text" id="new-lead-biz" placeholder="e.g. Apex Contracting" required>
         </div>
         <div class="form-group mb-2">
           <label>Contact / Owner Name</label>
-          <input type="text" id="new-lead-contact" placeholder="e.g. John Miller">
+          <input type="text" id="new-lead-contact" placeholder="e.g. Jordan Hayes">
         </div>
         <div class="form-row mb-2">
           <div class="form-group flex-1">
             <label>Phone Number *</label>
-            <input type="tel" id="new-lead-phone" placeholder="e.g. (214) 555-0199" required>
+            <input type="tel" id="new-lead-phone" placeholder="e.g. (555) 019-2834" required>
           </div>
           <div class="form-group flex-1">
             <label>Website URL</label>
-            <input type="text" id="new-lead-web" placeholder="e.g. lonestarroofing.com">
+            <input type="text" id="new-lead-web" placeholder="e.g. apexcontracting.com">
           </div>
         </div>
         <div class="form-row mb-3">
           <div class="form-group flex-1">
             <label>City</label>
-            <input type="text" id="new-lead-city" placeholder="e.g. Dallas">
+            <input type="text" id="new-lead-city" placeholder="e.g. Austin">
           </div>
           <div class="form-group flex-1">
             <label>State</label>
@@ -1029,6 +1030,6 @@
   <!-- Toast Notification -->
   <div id="toast" class="toast"></div>
 
-  <script src="app.js?v=20260930_1"></script>
+  <script src="app.js?v=20260930_2"></script>
 </body>
 </html>

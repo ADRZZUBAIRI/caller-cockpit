@@ -63,7 +63,7 @@ create table if not exists appointments (
     -- Scheduling Details
     appointment_time timestamp with time zone not null,
     timezone text default 'EST',
-    assigned_closer text default 'Abdul',
+    assigned_closer text default 'Closer 1',
     booked_by_caller text not null,
     
     -- Closer Outcome & Status
@@ -74,14 +74,6 @@ create table if not exists appointments (
     created_at timestamp with time zone default now(),
     updated_at timestamp with time zone default now()
 );
-
--- Initial team seeds
-insert into team_members (name, email, role) values 
-    ('Asma', 'asma@websmitherz.com', 'caller'),
-    ('Adil', 'adil@websmitherz.com', 'closer'),
-    ('Abdul', 'abdul@websmitherz.com', 'closer'),
-    ('Diya', 'diya@websmitherz.com', 'admin')
-on conflict (email) do nothing;
 
 -- Enable Realtime
 alter publication supabase_realtime add table leads;

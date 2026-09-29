@@ -6,7 +6,7 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 let supabaseClient = null;
 
 // Application State
-let currentAgent = 'Asma';
+let currentAgent = 'Agent';
 let currentView = 'caller';
 let leadsList = [];
 let appointmentsList = [];
@@ -21,11 +21,11 @@ let currentUser = JSON.parse(localStorage.getItem('ws_current_user') || 'null');
 const objectionData = {
   busy: {
     title: "I'm busy / On a job site right now",
-    script: `"Totally understand you're in the field, <span class="highlight-var">[Name]</span>. That’s exactly why I called quickly. We generated a 1-Page Forensic Mobile Latency & Map Audit for your company. I want to have our systems engineer, Abdul, review the 2-minute breakdown with you when you're in front of a computer. Is tomorrow at 10 AM or 4 PM better for a quick 10-minute briefing?"`
+    script: `"Totally understand you're in the field, <span class="highlight-var">[Name]</span>. That’s exactly why I called quickly. We generated a 1-Page Forensic Mobile Latency & Map Audit for your company. I want to have our senior systems engineer review the 2-minute breakdown with you when you're in front of a computer. Is tomorrow at 10 AM or 4 PM better for a quick 10-minute briefing?"`
   },
   send_email: {
     title: "Just send me an email with the information",
-    script: `"I'd be happy to send the 1-page PDF audit over, but our engineering team customized it specifically around your mobile phone tap-to-call drop rate. If I just email the raw data, it won't make sense without the live comparison. Let’s do a quick 10-minute screen share with Abdul tomorrow. What email should we send the calendar link to?"`
+    script: `"I'd be happy to send the 1-page PDF audit over, but our engineering team customized it specifically around your mobile phone tap-to-call drop rate. If I just email the raw data, it won't make sense without the live comparison. Let’s do a quick 10-minute screen share with our systems engineer tomorrow. What email should we send the calendar link to?"`
   },
   have_a_guy: {
     title: "We already have a web guy / marketing agency",
