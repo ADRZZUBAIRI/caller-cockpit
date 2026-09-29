@@ -7,10 +7,507 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  
+  <style>
+    /* ========================================================= */
+    /* WEBSMITHERZ CORE DESIGN TOKENS */
+    /* ========================================================= */
+    :root {
+      --bg-obsidian: #050507;
+      --bg-card: #0d0d12;
+      --bg-elevated: #14141c;
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-focus: #a335f9;
+      --text-primary: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --accent: #a335f9;
+      --accent-light: #c084fc;
+      --accent-glow: rgba(163, 53, 249, 0.2);
+      --emerald: #10b981;
+      --emerald-glow: rgba(16, 185, 129, 0.2);
+      --rose: #f43f5e;
+      --amber: #f59e0b;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      background-color: var(--bg-obsidian);
+      color: var(--text-primary);
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 13.5px;
+      line-height: 1.5;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .font-syne { font-family: 'Syne', sans-serif; font-weight: 700; }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+    .text-xs { font-size: 11px; }
+    .text-sm { font-size: 13px; }
+    .text-xl { font-size: 19px; }
+    .text-muted { color: var(--text-muted); }
+    .text-accent { color: var(--accent-light); }
+    .text-emerald { color: var(--emerald); }
+    .text-rose { color: var(--rose); }
+    .block { display: block; }
+    .mb-1 { margin-bottom: 4px; }
+    .mb-2 { margin-bottom: 8px; }
+    .mb-3 { margin-bottom: 12px; }
+    .mb-4 { margin-bottom: 16px; }
+    .mt-1 { margin-top: 4px; }
+    .mt-2 { margin-top: 8px; }
+    .mt-3 { margin-top: 12px; }
+    .mt-4 { margin-top: 16px; }
+    .w-full { width: 100%; }
+    .flex-1 { flex: 1; }
+
+    /* ========================================================= */
+    /* 1. AUTHENTICATION GATE SCREEN (LOCKED OVERLAY) */
+    /* ========================================================= */
+    .auth-gate-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      width: 100vw; height: 100vh;
+      background: radial-gradient(circle at 50% 30%, #1a0f30 0%, #050507 80%);
+      z-index: 99999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .auth-gate-card {
+      background: #0d0d14;
+      border: 1px solid rgba(163, 53, 249, 0.3);
+      border-radius: 16px;
+      padding: 36px 32px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 25px 70px rgba(0, 0, 0, 0.9), 0 0 40px rgba(163, 53, 249, 0.15);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .auth-gate-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .brand-bolt { color: var(--accent); }
+    .brand-text { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 16px; }
+    .brand-highlight { color: var(--accent-light); }
+    .brand-badge {
+      font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700;
+      padding: 2px 6px; border-radius: 4px; background: var(--accent-glow);
+      color: var(--accent-light); border: 1px solid rgba(163, 53, 249, 0.3);
+    }
+
+    .form-group { margin-bottom: 12px; }
+    .form-group label {
+      display: block; font-size: 11px; font-weight: 600; color: var(--text-muted); margin-bottom: 5px;
+    }
+
+    .form-group input, .form-group select, .form-group textarea, .gate-subfields input, .gate-subfields select {
+      width: 100%;
+      background: #060609;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #f8fafc;
+      padding: 9px 12px;
+      border-radius: 6px;
+      font-size: 12.5px;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus, .gate-subfields input:focus, .gate-subfields select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 10px rgba(163, 53, 249, 0.25);
+    }
+
+    /* Buttons */
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      font-weight: 700;
+      font-size: 12.5px;
+      padding: 10px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+    .btn-primary:hover:not(:disabled) {
+      background: var(--accent-light);
+      box-shadow: 0 0 16px var(--accent-glow);
+    }
+    .btn-primary.btn-disabled, .btn-primary:disabled {
+      opacity: 0.35; cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-primary);
+      font-weight: 600;
+      font-size: 12px;
+      padding: 8px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      padding: 8px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .btn-ghost:hover {
+      color: var(--text-primary);
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    .btn-sm { font-size: 11px; padding: 4px 8px; border-radius: 4px; }
+
+    /* ========================================================= */
+    /* 2. TOP NAVIGATION */
+    /* ========================================================= */
+    .top-nav {
+      height: 56px;
+      background-color: var(--bg-card);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      flex-shrink: 0;
+      z-index: 50;
+    }
+
+    .nav-left { display: flex; align-items: center; gap: 24px; }
+    .view-toggles {
+      display: flex;
+      background: var(--bg-obsidian);
+      border: 1px solid var(--border-subtle);
+      padding: 3px;
+      border-radius: 8px;
+      gap: 4px;
+    }
+
+    .toggle-tab {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+    .toggle-tab:hover { color: var(--text-primary); }
+    .toggle-tab.active {
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+      border: 1px solid var(--border-subtle);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+    }
+
+    .badge-count {
+      background: var(--accent);
+      color: #fff;
+      font-size: 10px;
+      padding: 1px 5px;
+      border-radius: 10px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .nav-right { display: flex; align-items: center; gap: 12px; }
+    .cloud-status {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 11px; font-family: 'JetBrains Mono', monospace;
+      color: var(--text-muted); padding: 4px 8px;
+      background: var(--bg-obsidian); border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+    }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+    .status-dot.connected { background: var(--emerald); box-shadow: 0 0 6px var(--emerald); }
+
+    /* ========================================================= */
+    /* 3. MAIN COCKPIT & CALLER STUDIO GRID */
+    /* ========================================================= */
+    .cockpit-main { flex: 1; overflow: hidden; position: relative; }
+    .view-panel { display: none; height: 100%; padding: 14px 16px; overflow-y: auto; }
+    .view-panel.active { display: block; }
+
+    .caller-grid {
+      display: grid;
+      grid-template-columns: 290px 1fr 380px;
+      gap: 14px;
+      height: 100%;
+    }
+
+    .panel-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      flex-shrink: 0;
+    }
+    .panel-header h3 { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; }
+
+    .stats-mini-bar {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 6px;
+      background: var(--bg-obsidian);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 6px;
+      margin-bottom: 10px;
+      flex-shrink: 0;
+    }
+
+    .mini-stat { display: flex; flex-direction: column; align-items: center; }
+    .stat-num { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 15px; }
+    .stat-label { font-size: 9px; color: var(--text-muted); text-transform: uppercase; }
+
+    .queue-search-wrap input {
+      width: 100%; background: var(--bg-obsidian); border: 1px solid var(--border-subtle);
+      color: var(--text-primary); padding: 7px 10px; border-radius: 6px;
+      font-size: 11.5px; outline: none; margin-bottom: 8px;
+    }
+    .queue-search-wrap input:focus { border-color: var(--accent); }
+
+    .queue-list {
+      flex: 1; overflow-y: auto; display: flex; flex-direction: column;
+      gap: 6px; padding-right: 2px;
+    }
+
+    .lead-queue-item {
+      background: var(--bg-obsidian);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 8px 10px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .lead-queue-item:hover { border-color: rgba(255, 255, 255, 0.2); }
+    .lead-queue-item.active {
+      border-color: var(--accent);
+      background: rgba(163, 53, 249, 0.08);
+      box-shadow: 0 0 10px rgba(163, 53, 249, 0.15);
+    }
+
+    .lead-item-biz { font-weight: 700; font-size: 12.5px; color: var(--text-primary); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .lead-item-sub { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); }
+    .lead-status-tag { font-size: 9px; font-family: 'JetBrains Mono', monospace; padding: 1px 4px; border-radius: 3px; background: var(--bg-elevated); }
+
+    /* Center Battlecard */
+    .col-battlecard .panel-card { overflow-y: auto; }
+    .live-pulse-badge {
+      font-family: 'JetBrains Mono', monospace; font-size: 9.5px; font-weight: 700;
+      color: var(--emerald); background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.3); padding: 2px 6px; border-radius: 4px;
+    }
+
+    .call-timer-box { display: flex; align-items: center; gap: 8px; }
+    #call-timer { font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700; color: var(--accent-light); }
+    .btn-timer {
+      background: var(--bg-obsidian); border: 1px solid var(--border-subtle);
+      color: var(--text-primary); padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer;
+    }
+    .btn-timer.calling { background: var(--rose); color: #fff; border-color: var(--rose); }
+
+    .active-lead-banner {
+      background: var(--bg-obsidian); border: 1px solid var(--border-subtle);
+      border-radius: 8px; padding: 12px 14px; display: flex;
+      align-items: center; justify-content: space-between; margin-bottom: 12px;
+    }
+    .active-lead-banner h2 { font-size: 15px; margin-bottom: 2px; }
+    .lead-meta-row { display: flex; gap: 12px; font-size: 11.5px; color: var(--text-muted); }
+    .lead-meta-row b { color: var(--text-primary); }
+
+    .btn-call-action {
+      background: var(--emerald); color: #000; font-weight: 700; font-size: 12px;
+      padding: 7px 14px; border-radius: 6px; text-decoration: none;
+      display: inline-flex; align-items: center; gap: 5px;
+    }
+    .btn-call-action:hover { box-shadow: 0 0 12px var(--emerald-glow); }
+
+    .script-flow-container { display: flex; flex-direction: column; gap: 12px; }
+    .script-card {
+      background: var(--bg-obsidian); border: 1px solid var(--border-subtle);
+      border-radius: 8px; padding: 12px 14px; display: flex; gap: 12px;
+    }
+
+    .step-num-badge {
+      width: 24px; height: 24px; border-radius: 50%;
+      background: var(--accent-glow); color: var(--accent-light); border: 1px solid var(--accent);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 11px; flex-shrink: 0;
+    }
+
+    .step-body h4 { font-size: 12.5px; font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; }
+    .badge-danger {
+      font-size: 9.5px; font-family: 'JetBrains Mono', monospace;
+      background: rgba(244, 63, 94, 0.12); color: var(--rose);
+      border: 1px solid rgba(244, 63, 94, 0.3); padding: 1px 5px; border-radius: 3px;
+    }
+
+    .script-text { font-size: 12.5px; line-height: 1.55; color: #e2e8f0; }
+    .highlight-var { color: var(--accent-light); font-weight: 700; background: var(--accent-glow); padding: 1px 4px; border-radius: 3px; }
+    .script-prompt {
+      margin-top: 6px; padding: 6px 10px; background: var(--bg-elevated);
+      border-radius: 4px; font-size: 12px; border-left: 3px solid var(--accent);
+    }
+
+    /* Objections */
+    .objection-tabs-box { background: var(--bg-obsidian); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 12px 14px; }
+    .objection-tabs-header { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px; }
+    .objection-pills { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+    .obj-pill {
+      background: var(--bg-elevated); border: 1px solid var(--border-subtle);
+      color: var(--text-muted); font-size: 11px; font-weight: 600; padding: 4px 8px;
+      border-radius: 4px; cursor: pointer;
+    }
+    .obj-pill:hover { color: var(--text-primary); }
+    .obj-pill.active { background: var(--accent-glow); color: var(--accent-light); border-color: var(--accent); }
+
+    .objection-content-box {
+      background: var(--bg-card); border: 1px solid var(--border-subtle);
+      border-radius: 4px; padding: 8px 12px; font-size: 12px; line-height: 1.55;
+      border-left: 3px solid var(--amber);
+    }
+
+    /* Right Column: Qualification Gate */
+    .col-qualification .panel-card { overflow-y: auto; }
+    .pill-locked {
+      font-family: 'JetBrains Mono', monospace; font-size: 10px; padding: 2px 6px;
+      border-radius: 4px; background: rgba(245, 158, 11, 0.12); color: var(--amber);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+    .pill-unlocked { background: rgba(16, 185, 129, 0.12); color: var(--emerald); border: 1px solid rgba(16, 185, 129, 0.3); }
+
+    .gate-item {
+      background: var(--bg-obsidian); border: 1px solid var(--border-subtle);
+      border-radius: 8px; padding: 8px 10px; margin-bottom: 8px;
+    }
+    .gate-checkbox-label { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 12px; cursor: pointer; margin-bottom: 4px; }
+    .gate-checkbox-label input[type="checkbox"] { width: 14px; height: 14px; accent-color: var(--accent); cursor: pointer; }
+    .gate-subfields { display: flex; flex-direction: column; gap: 5px; padding-left: 20px; }
+
+    .appointment-scheduling-box {
+      background: var(--bg-obsidian); border: 1px solid var(--border-subtle);
+      border-radius: 8px; padding: 10px; margin-top: 8px;
+    }
+    .form-row { display: flex; gap: 6px; }
+
+    .dispo-btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+    .btn-dispo {
+      background: var(--bg-obsidian); border: 1px solid var(--border-subtle);
+      color: var(--text-muted); font-size: 10.5px; padding: 5px 6px; border-radius: 4px; cursor: pointer;
+    }
+    .btn-dispo:hover { background: var(--bg-elevated); color: var(--text-primary); }
+
+    /* ========================================================= */
+    /* 4. CLOSER QUEUE & DOSSIERS */
+    /* ========================================================= */
+    .closer-layout, .leads-layout { max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+    .closer-header-bar, .leads-header-bar { display: flex; align-items: center; justify-content: space-between; padding-bottom: 10px; border-bottom: 1px solid var(--border-subtle); }
+    .closer-filters { display: flex; gap: 6px; }
+    .filter-pill {
+      background: var(--bg-card); border: 1px solid var(--border-subtle);
+      color: var(--text-muted); padding: 4px 10px; border-radius: 6px;
+      font-size: 11.5px; font-weight: 600; cursor: pointer;
+    }
+    .filter-pill.active { background: var(--accent-glow); color: var(--accent-light); border-color: var(--accent); }
+
+    .closer-cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 14px; }
+    .dossier-card {
+      background: var(--bg-card); border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg); padding: 14px; display: flex;
+      flex-direction: column; gap: 10px;
+    }
+    .dossier-top { display: flex; justify-content: space-between; align-items: flex-start; }
+    .dossier-time-badge {
+      font-family: 'JetBrains Mono', monospace; font-size: 10.5px; font-weight: 700;
+      background: var(--accent-glow); color: var(--accent-light);
+      border: 1px solid rgba(163, 53, 249, 0.3); padding: 2px 6px; border-radius: 4px;
+    }
+
+    .dossier-pain-box {
+      background: var(--bg-obsidian); border-left: 3px solid var(--rose);
+      padding: 6px 10px; border-radius: 0 4px 4px 0; font-size: 11.5px;
+    }
+
+    .dossier-metrics-list { display: flex; flex-direction: column; gap: 3px; font-size: 11.5px; color: var(--text-muted); }
+    .dossier-metrics-list span b { color: var(--text-primary); }
+    .dossier-footer { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-subtle); padding-top: 8px; margin-top: auto; }
+
+    /* Leads Table */
+    .leads-table-container { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); overflow: hidden; }
+    .data-table { width: 100%; border-collapse: collapse; text-align: left; }
+    .data-table th { background: var(--bg-obsidian); padding: 8px 12px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border-subtle); }
+    .data-table td { padding: 10px 12px; border-bottom: 1px solid var(--border-subtle); font-size: 12px; }
+    .data-table tr:hover td { background: var(--bg-elevated); }
+
+    /* Modals & Toast */
+    .modal-backdrop {
+      display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(4px); z-index: 100; align-items: center; justify-content: center;
+    }
+    .modal-backdrop.active { display: flex; }
+    .modal-card { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); width: 100%; max-width: 440px; padding: 20px; }
+    .modal-card.modal-lg { max-width: 640px; }
+    .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .modal-close { background: transparent; border: none; color: var(--text-muted); font-size: 18px; cursor: pointer; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+
+    .toast {
+      position: fixed; bottom: 20px; right: 20px; background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle); color: var(--text-primary);
+      padding: 10px 16px; border-radius: 8px; font-size: 12px;
+      opacity: 0; transform: translateY(10px); transition: all 0.25s ease; pointer-events: none; z-index: 200;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .empty-state { text-align: center; padding: 24px; color: var(--text-muted); font-size: 12px; }
+  </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="bg-obsidian text-slate">
+<body>
 
   <!-- ======================================================== -->
   <!-- MANDATORY AUTHENTICATION GATE (FORCED LOGIN / SIGN UP) -->
@@ -18,16 +515,16 @@
   <div id="auth-gate-screen" class="auth-gate-overlay">
     <div class="auth-gate-card">
       <div class="auth-gate-brand">
-        <svg class="brand-bolt" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <svg class="brand-bolt" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
           <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
         </svg>
         <span class="brand-text">Web<span class="brand-highlight">Smitherz</span></span>
         <span class="brand-badge">COCKPIT</span>
       </div>
       
-      <h2 class="font-syne text-xl mt-3" id="auth-gate-title">Caller & Closer Portal Sign In</h2>
+      <h2 class="font-syne text-xl mt-2" id="auth-gate-title">Caller & Closer Portal Sign In</h2>
       <p class="text-xs text-muted mb-4" id="auth-gate-sub">
-        Sign in with your verified WebSmitherz account to access the dialer and live pipeline.
+        Sign in with your verified account to access the dialer and live pipeline.
       </p>
 
       <form id="auth-gate-form" onsubmit="handleAuthSubmit(event)">
@@ -58,7 +555,7 @@
           Sign In to Cockpit
         </button>
 
-        <div class="auth-gate-toggle-box">
+        <div style="border-top: 1px solid var(--border-subtle); padding-top: 14px; margin-top: 6px;">
           <button type="button" class="btn-ghost w-full" id="auth-gate-toggle-btn" onclick="toggleAuthGateMode()">
             Need an account? Register as New Caller
           </button>
@@ -75,8 +572,8 @@
     <!-- Top Navigation Bar -->
     <header class="top-nav">
       <div class="nav-left">
-        <div class="brand-logo">
-          <svg class="brand-bolt" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <div class="brand-logo" style="display: flex; align-items: center; gap: 8px;">
+          <svg class="brand-bolt" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
             <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
           </svg>
           <span class="brand-text">Web<span class="brand-highlight">Smitherz</span></span>
@@ -163,7 +660,7 @@
           <div class="col-battlecard">
             <div class="panel-card">
               <div class="panel-header">
-                <div class="flex-row items-center gap-2">
+                <div style="display:flex; align-items:center; gap:8px;">
                   <span class="live-pulse-badge">LIVE CALL SCRIPT</span>
                   <span class="text-xs text-muted">WebSmitherz Systems Engineering Standard</span>
                 </div>
@@ -332,7 +829,7 @@
                       <label>Date & Time (Prospect's Local Time):</label>
                       <input type="datetime-local" id="qual-appt-datetime" required onchange="validateGate()">
                     </div>
-                    <div class="form-group" style="width: 90px;">
+                    <div class="form-group" style="width: 85px;">
                       <label>Timezone:</label>
                       <select id="qual-appt-tz">
                         <option value="EST">EST</option>
@@ -357,7 +854,7 @@
                   </div>
 
                   <button type="submit" id="btn-submit-appointment" class="btn-primary w-full mt-3 btn-disabled" disabled>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
                     Lock & Book Qualified Appointment
                   </button>
                 </div>
@@ -365,7 +862,7 @@
               </form>
 
               <!-- Quick Disposition Actions if Call didn't book -->
-              <div class="quick-dispositions mt-4">
+              <div class="quick-dispositions mt-3">
                 <span class="text-xs text-muted block mb-1">If not booked, log disposition:</span>
                 <div class="dispo-btn-grid">
                   <button type="button" class="btn-dispo" onclick="quickLogDisposition('Voicemail')">Voicemail</button>
