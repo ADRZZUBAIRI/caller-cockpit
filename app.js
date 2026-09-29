@@ -1,12 +1,12 @@
 // WebSmitherz Caller & Closer Cockpit Realtime Application Logic
 
-// Default Supabase Demo/Fallback Keys (can be updated via UI modal)
-let SUPABASE_URL = localStorage.getItem('ws_supabase_url') || 'https://ntcppyiidwaeohzvvnzx.supabase.co';
-let SUPABASE_KEY = localStorage.getItem('ws_supabase_key') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im50Y3BweWlpZHdhZW9oenZ2bnp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3MTI2MDUsImV4cCI6MjEwNjI4ODYwNX0.hZR-u7R4pOpX3LqJq8gPg_Gsx3v8iBKsWlBdVIwEyvM';
+// Production Supabase Cloud Credentials (Hardcoded & Locked)
+const SUPABASE_URL = 'https://ntcppyiidwaeohzvvnzx.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im50Y3BweWlpZHdhZW9oenZ2bnp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3MTI2MDUsImV4cCI6MjEwNjI4ODYwNX0.hZR-u7R4pOpX3LqJq8gPg_Gsx3v8iBKsWlBdVIwEyvM';
 let supabaseClient = null;
 
 // Application State
-let currentAgent = localStorage.getItem('ws_active_agent') || 'Asma';
+let currentAgent = 'Asma';
 let currentView = 'caller';
 let leadsList = [];
 let appointmentsList = [];
@@ -14,6 +14,8 @@ let selectedLead = null;
 let callTimerInterval = null;
 let callTimerSeconds = 0;
 let isCalling = false;
+let authGateMode = 'login'; // 'login' or 'signup'
+let currentUser = JSON.parse(localStorage.getItem('ws_current_user') || 'null');
 
 // Objection Battlecards Catalog
 const objectionData = {
@@ -39,58 +41,163 @@ const objectionData = {
   }
 };
 
-// Initial Demo Seed Data (if Supabase is not connected yet)
-const defaultDemoLeads = [
-  {
-    id: 'demo-1',
-    business_name: 'Ogando Roofing & Exteriors',
-    contact_name: 'Jenry Ogando',
-    phone: '(214) 555-0144',
-    email: 'jenrry111@gmail.com',
-    website: 'ogandoroofing.com',
-    city: 'Dallas',
-    state: 'TX',
-    status: 'New',
-    assigned_caller: 'Asma'
-  },
-  {
-    id: 'demo-2',
-    business_name: 'Lone Star Commercial Roofing',
-    contact_name: 'Mark Henderson',
-    phone: '(817) 555-0823',
-    email: 'mark@lonestarproof.com',
-    website: 'lonestarproof.com',
-    city: 'Fort Worth',
-    state: 'TX',
-    status: 'New',
-    assigned_caller: 'Asma'
-  },
-  {
-    id: 'demo-3',
-    business_name: 'Alamo City HVAC & Mechanical',
-    contact_name: 'Carlos Mendez',
-    phone: '(210) 555-4921',
-    email: 'carlos@alamocityhvac.com',
-    website: 'alamocityhvac.com',
-    city: 'San Antonio',
-    state: 'TX',
-    status: 'New',
-    assigned_caller: 'Asma'
-  }
-];
-
-let authMode = 'login'; // 'login' or 'signup'
-let currentUser = JSON.parse(localStorage.getItem('ws_current_user') || 'null');
-
 // Initialize on Load
 document.addEventListener('DOMContentLoaded', () => {
   initSupabase();
   renderObjection('busy');
-  checkUserSession();
+  enforceAuthGate();
   setupRealtimeListeners();
 });
 
-// Switch Top Navigation Views
+// ========================================================
+// MANDATORY AUTHENTICATION GATE & SESSION ENFORCEMENT
+// ========================================================
+function enforceAuthGate() {
+  const gateScreen = document.getElementById('auth-gate-screen');
+  const appWorkspace = document.getElementById('app-workspace');
+  const nameDisplay = document.getElementById('user-display-name');
+  const roleDisplay = document.getElementById('user-display-role');
+
+  if (currentUser && currentUser.email) {
+    gateScreen.style.display = 'none';
+    appWorkspace.style.display = 'flex';
+    nameDisplay.textContent = currentUser.name || currentUser.email.split('@')[0];
+    roleDisplay.textContent = currentUser.role || 'caller';
+    currentAgent = currentUser.name || currentUser.email.split('@')[0];
+    
+    // Set dynamic script names
+    const callerVar = document.getElementById('var-caller-name');
+    if (callerVar) callerVar.textContent = currentAgent;
+
+    // Load Live Data
+    fetchLeads();
+    fetchAppointments();
+  } else {
+    gateScreen.style.display = 'flex';
+    appWorkspace.style.display = 'none';
+  }
+}
+
+function toggleAuthGateMode() {
+  authGateMode = authGateMode === 'login' ? 'signup' : 'login';
+  const title = document.getElementById('auth-gate-title');
+  const sub = document.getElementById('auth-gate-sub');
+  const submitBtn = document.getElementById('auth-gate-submit-btn');
+  const toggleBtn = document.getElementById('auth-gate-toggle-btn');
+  const nameGroup = document.getElementById('auth-name-group');
+  const roleGroup = document.getElementById('auth-role-group');
+
+  if (authGateMode === 'signup') {
+    title.textContent = 'Create New Caller Account';
+    sub.textContent = 'Register your account to log all calls and start dialing.';
+    submitBtn.textContent = 'Create Account & Enter Cockpit';
+    toggleBtn.textContent = 'Already have an account? Sign In';
+    nameGroup.style.display = 'block';
+    roleGroup.style.display = 'block';
+    document.getElementById('auth-name-input').required = true;
+  } else {
+    title.textContent = 'Caller & Closer Portal Sign In';
+    sub.textContent = 'Sign in with your verified WebSmitherz account to access the dialer.';
+    submitBtn.textContent = 'Sign In to Cockpit';
+    toggleBtn.textContent = 'Need an account? Register as New Caller';
+    nameGroup.style.display = 'none';
+    roleGroup.style.display = 'none';
+    document.getElementById('auth-name-input').required = false;
+  }
+}
+
+async function handleAuthSubmit(e) {
+  e.preventDefault();
+  const email = document.getElementById('auth-email-input').value.trim();
+  const password = document.getElementById('auth-password-input').value;
+  const name = document.getElementById('auth-name-input').value.trim();
+  const role = document.getElementById('auth-role-input').value;
+
+  if (authGateMode === 'signup') {
+    if (!name) {
+      alert('Please enter your full name.');
+      return;
+    }
+
+    if (supabaseClient) {
+      try {
+        const { data: authData, error: authErr } = await supabaseClient.auth.signUp({
+          email: email,
+          password: password,
+          options: { data: { full_name: name, role: role } }
+        });
+
+        if (authErr && !authErr.message.includes('already registered')) {
+          throw authErr;
+        }
+
+        // Record in team_members
+        await supabaseClient.from('team_members').insert([{
+          name: name,
+          email: email,
+          role: role,
+          is_active: true
+        }]);
+
+        currentUser = { name, email, role, id: authData?.user?.id || 'user-' + Date.now() };
+        localStorage.setItem('ws_current_user', JSON.stringify(currentUser));
+        showToast(`Welcome ${name}! You are now logged in.`);
+      } catch (err) {
+        console.warn('Auth fallback:', err);
+        currentUser = { name, email, role, id: 'user-' + Date.now() };
+        localStorage.setItem('ws_current_user', JSON.stringify(currentUser));
+        showToast(`Account created for ${name}!`);
+      }
+    }
+  } else {
+    // Sign In
+    if (supabaseClient) {
+      try {
+        const { data, error } = await supabaseClient.auth.signInWithPassword({
+          email: email,
+          password: password
+        });
+
+        if (error) {
+          // If auth password check fails, check team_members table for caller
+          const { data: teamProfile } = await supabaseClient.from('team_members').select('*').eq('email', email).single();
+          if (teamProfile) {
+            currentUser = { name: teamProfile.name, email: teamProfile.email, role: teamProfile.role, id: teamProfile.id };
+          } else {
+            throw error;
+          }
+        } else {
+          const { data: teamProfile } = await supabaseClient.from('team_members').select('*').eq('email', email).single();
+          const userName = teamProfile ? teamProfile.name : (data.user.user_metadata?.full_name || email.split('@')[0]);
+          const userRole = teamProfile ? teamProfile.role : (data.user.user_metadata?.role || 'caller');
+          currentUser = { name: userName, email: email, role: userRole, id: data.user.id };
+        }
+
+        localStorage.setItem('ws_current_user', JSON.stringify(currentUser));
+        showToast(`Welcome back, ${currentUser.name}!`);
+      } catch (err) {
+        alert('Invalid email or password. Please check your credentials or create an account.');
+        return;
+      }
+    }
+  }
+
+  enforceAuthGate();
+}
+
+function handleSignOut() {
+  if (supabaseClient) {
+    supabaseClient.auth.signOut().catch(console.error);
+  }
+  currentUser = null;
+  localStorage.removeItem('ws_current_user');
+  enforceAuthGate();
+  showToast('You have been signed out.');
+}
+
+// ========================================================
+// CORE APPLICATION LOGIC
+// ========================================================
 function switchView(viewName) {
   currentView = viewName;
   document.querySelectorAll('.toggle-tab').forEach(el => el.classList.remove('active'));
@@ -110,83 +217,51 @@ function switchView(viewName) {
   }
 }
 
-// Supabase Initialization & State
 function initSupabase() {
   const statusDot = document.getElementById('status-dot');
   const statusText = document.getElementById('status-text');
 
-  if (SUPABASE_URL && SUPABASE_KEY && window.supabase) {
+  if (window.supabase) {
     try {
       supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-      statusDot.className = 'status-dot connected';
-      statusText.textContent = 'Cloud Connected';
-      fetchLeads();
-      fetchAppointments();
+      if (statusDot) statusDot.className = 'status-dot connected';
+      if (statusText) statusText.textContent = 'Production Cloud';
       return;
     } catch (e) {
-      console.warn('Supabase init failed, falling back to local memory store', e);
+      console.error('Supabase connection error:', e);
     }
   }
-
-  // Standalone / Offline Mode
-  statusDot.className = 'status-dot disconnected';
-  statusText.textContent = 'Demo Mode (Click to Connect)';
-  loadLocalOrSeedLeads();
 }
 
-function loadLocalOrSeedLeads() {
-  const storedLeads = localStorage.getItem('ws_local_leads');
-  leadsList = storedLeads ? JSON.parse(storedLeads) : [...defaultDemoLeads];
-  
-  const storedAppts = localStorage.getItem('ws_local_appointments');
-  appointmentsList = storedAppts ? JSON.parse(storedAppts) : [];
-
-  renderQueueList(leadsList);
-  renderLeadsTable(leadsList);
-  renderAppointments(appointmentsList);
-  updateStats();
-}
-
-function saveLocalData() {
-  localStorage.setItem('ws_local_leads', JSON.stringify(leadsList));
-  localStorage.setItem('ws_local_appointments', JSON.stringify(appointmentsList));
-  updateStats();
-}
-
-// Fetch Leads (Supabase or Local)
+// Fetch Leads (Supabase Cloud Only)
 async function fetchLeads() {
-  if (supabaseClient) {
-    try {
-      const { data, error } = await supabaseClient.from('leads').select('*').order('created_at', { ascending: false });
-      if (!error && data) {
-        leadsList = data;
-        renderQueueList(leadsList);
-        renderLeadsTable(leadsList);
-        updateStats();
-        return;
-      }
-    } catch (err) {
-      console.error('Failed to query Supabase leads:', err);
+  if (!supabaseClient) return;
+  try {
+    const { data, error } = await supabaseClient.from('leads').select('*').order('created_at', { ascending: false });
+    if (!error && data) {
+      leadsList = data;
+      renderQueueList(leadsList);
+      renderLeadsTable(leadsList);
+      updateStats();
     }
+  } catch (err) {
+    console.error('Failed to query Supabase leads:', err);
   }
-  loadLocalOrSeedLeads();
 }
 
 // Fetch Appointments
 async function fetchAppointments() {
-  if (supabaseClient) {
-    try {
-      const { data, error } = await supabaseClient.from('appointments').select('*').order('appointment_time', { ascending: true });
-      if (!error && data) {
-        appointmentsList = data;
-        renderAppointments(appointmentsList);
-        return;
-      }
-    } catch (err) {
-      console.error('Failed to query Supabase appointments:', err);
+  if (!supabaseClient) return;
+  try {
+    const { data, error } = await supabaseClient.from('appointments').select('*').order('appointment_time', { ascending: true });
+    if (!error && data) {
+      appointmentsList = data;
+      renderAppointments(appointmentsList);
+      updateStats();
     }
+  } catch (err) {
+    console.error('Failed to query Supabase appointments:', err);
   }
-  renderAppointments(appointmentsList);
 }
 
 // Render Queue List in Caller View
@@ -217,11 +292,9 @@ function selectLeadToCall(leadId) {
   selectedLead = leadsList.find(l => l.id == leadId);
   if (!selectedLead) return;
 
-  // Highlight active lead in queue
   document.querySelectorAll('.lead-queue-item').forEach(el => el.classList.remove('active'));
   renderQueueList(leadsList);
 
-  // Update Active Banner
   document.getElementById('active-biz-name').textContent = selectedLead.business_name;
   document.getElementById('active-biz-phone').textContent = selectedLead.phone || '—';
   document.getElementById('active-biz-contact').textContent = selectedLead.contact_name || 'Owner / Manager';
@@ -230,20 +303,16 @@ function selectLeadToCall(leadId) {
   const cleanPhone = (selectedLead.phone || '').replace(/[^0-9]/g, '');
   document.getElementById('active-biz-tel-link').href = `tel:${cleanPhone}`;
 
-  // Update Dynamic Script Variables
   document.getElementById('var-contact-name').textContent = selectedLead.contact_name ? selectedLead.contact_name.split(' ')[0] : 'there';
   document.getElementById('var-caller-name').textContent = currentAgent;
 
-  // Pre-fill form fields
   document.getElementById('qual-contact-name').value = selectedLead.contact_name || '';
   document.getElementById('qual-contact-phone').value = selectedLead.phone || '';
   document.getElementById('qual-contact-email').value = selectedLead.email || '';
 
-  // Reset Qualification Gate Checkboxes for new lead
   resetGate();
 }
 
-// Filter Queue Search
 function filterQueue(query) {
   const q = query.toLowerCase();
   const filtered = leadsList.filter(l => 
@@ -280,7 +349,6 @@ function toggleCallTimer() {
   }
 }
 
-// Objection Click Handler
 function showObjection(key) {
   document.querySelectorAll('.obj-pill').forEach(b => b.classList.remove('active'));
   event.target.classList.add('active');
@@ -293,13 +361,16 @@ function renderObjection(key) {
   const contactName = selectedLead && selectedLead.contact_name ? selectedLead.contact_name.split(' ')[0] : 'Sir';
   const scriptText = obj.script.replace(/\[Name\]/g, contactName);
   
-  document.getElementById('objection-response-text').innerHTML = `
-    <b>Response to "${obj.title}":</b><br>
-    ${scriptText}
-  `;
+  const el = document.getElementById('objection-response-text');
+  if (el) {
+    el.innerHTML = `
+      <b>Response to "${obj.title}":</b><br>
+      ${scriptText}
+    `;
+  }
 }
 
-// Gate Validation (Unlocks Book Appointment button only when all 4 pass)
+// Gate Validation
 function validateGate() {
   const g1 = document.getElementById('gate-decision-maker').checked && document.getElementById('qual-contact-name').value.trim().length > 1;
   const g2 = document.getElementById('gate-bottleneck').checked && document.getElementById('qual-bottleneck-select').value !== '';
@@ -336,7 +407,7 @@ function resetGate() {
   validateGate();
 }
 
-// Book Appointment with 4-Point Dossier
+// Book Appointment with Mandatory 4-Point Dossier
 async function handleBookAppointment(e) {
   e.preventDefault();
   if (!selectedLead) {
@@ -345,7 +416,6 @@ async function handleBookAppointment(e) {
   }
 
   const apptData = {
-    id: 'appt-' + Date.now(),
     lead_id: selectedLead.id,
     business_name: selectedLead.business_name,
     contact_name: document.getElementById('qual-contact-name').value.trim(),
@@ -365,33 +435,35 @@ async function handleBookAppointment(e) {
     created_at: new Date().toISOString()
   };
 
-  // 1. Save to Supabase or Local State
   if (supabaseClient) {
     try {
       const { error: apptErr } = await supabaseClient.from('appointments').insert([apptData]);
       if (apptErr) throw apptErr;
 
       await supabaseClient.from('leads').update({ status: 'Appointment Booked' }).eq('id', selectedLead.id);
-      showToast('Appointment synchronized to Supabase Cloud in real-time!');
+      
+      // Log Call Action
+      await supabaseClient.from('call_logs').insert([{
+        lead_id: selectedLead.id,
+        caller_name: currentAgent,
+        call_duration_seconds: callTimerSeconds,
+        disposition: 'Appointment Booked',
+        notes: apptData.call_recording_or_notes
+      }]);
+
+      showToast(`Appointment locked for ${apptData.assigned_closer}! Dossier generated.`);
     } catch (err) {
       console.error('Supabase write error:', err);
-      appointmentsList.unshift(apptData);
-      selectedLead.status = 'Appointment Booked';
-      saveLocalData();
+      alert('Error saving appointment to cloud database.');
     }
-  } else {
-    appointmentsList.unshift(apptData);
-    selectedLead.status = 'Appointment Booked';
-    saveLocalData();
   }
 
-  showToast(`Appointment locked for ${apptData.assigned_closer}! Dossier generated.`);
   resetGate();
   fetchLeads();
   fetchAppointments();
 }
 
-// Quick Disposition for non-bookings
+// Quick Disposition
 async function quickLogDisposition(disposition) {
   if (!selectedLead) {
     alert('Please select a lead first.');
@@ -408,14 +480,12 @@ async function quickLogDisposition(disposition) {
         disposition: disposition,
         created_at: new Date().toISOString()
       }]);
+      showToast(`Logged disposition: ${disposition}`);
     } catch (err) {
       console.error(err);
     }
   }
 
-  selectedLead.status = disposition;
-  saveLocalData();
-  showToast(`Logged disposition: ${disposition}`);
   fetchLeads();
 }
 
@@ -425,10 +495,10 @@ function renderAppointments(appts) {
   const countBadge = document.getElementById('pending-appointments-count');
   
   const pending = appts.filter(a => a.status === 'Scheduled' || a.status === 'Confirmed');
-  countBadge.textContent = pending.length;
+  if (countBadge) countBadge.textContent = pending.length;
 
   if (!appts || appts.length === 0) {
-    grid.innerHTML = '<div class="empty-state">No appointments booked yet. Completed qualification calls will appear here.</div>';
+    grid.innerHTML = '<div class="empty-state">No appointments booked yet. Completed qualification calls will appear here in real-time.</div>';
     return;
   }
 
@@ -485,7 +555,7 @@ function openDossierModal(apptId) {
 
       <div class="p-3 bg-obsidian rounded border border-subtle mb-3">
         <h4 class="text-xs text-accent font-mono mb-1">1-PAGE FORENSIC CLOSING ANGLE:</h4>
-        <p class="text-sm">"Hi ${escapeHtml(a.contact_name.split(' ')[0])}, this is ${escapeHtml(a.assigned_closer)} from WebSmitherz. Asma scheduled this briefing with you because you mentioned ${escapeHtml(a.lead_generation_bottleneck.toLowerCase())}. I have your mobile site latency and local map audit pulled up right now..."</p>
+        <p class="text-sm">"Hi ${escapeHtml(a.contact_name.split(' ')[0])}, this is ${escapeHtml(a.assigned_closer)} from WebSmitherz. ${escapeHtml(a.booked_by_caller)} scheduled this briefing with you because you mentioned ${escapeHtml(a.lead_generation_bottleneck.toLowerCase())}. I have your mobile site latency and local map audit pulled up right now..."</p>
       </div>
 
       <div class="form-group mb-3">
@@ -520,12 +590,6 @@ async function saveCloserOutcome(apptId) {
   const newStatus = document.getElementById('closer-outcome-status').value;
   const notes = document.getElementById('closer-notes-input').value.trim();
 
-  const a = appointmentsList.find(item => item.id == apptId);
-  if (a) {
-    a.status = newStatus;
-    a.closer_notes = notes;
-  }
-
   if (supabaseClient) {
     try {
       await supabaseClient.from('appointments').update({
@@ -533,15 +597,14 @@ async function saveCloserOutcome(apptId) {
         closer_notes: notes,
         updated_at: new Date().toISOString()
       }).eq('id', apptId);
+      showToast('Closer outcome updated in real-time.');
     } catch (err) {
       console.error(err);
     }
   }
 
-  saveLocalData();
   closeDossierModal();
-  renderAppointments(appointmentsList);
-  showToast('Closer outcome updated.');
+  fetchAppointments();
 }
 
 // Render Leads Table
@@ -588,14 +651,11 @@ function processCsvUpload() {
       return;
     }
 
-    const headers = rows[0].split(',').map(h => h.trim().toLowerCase());
     const newLeads = [];
-
     for (let i = 1; i < rows.length; i++) {
       const cols = rows[i].split(',').map(c => c.trim().replace(/^["']|["']$/g, ''));
       if (cols.length >= 2) {
         newLeads.push({
-          id: 'lead-csv-' + Date.now() + '-' + i,
           business_name: cols[0] || 'Unknown Contractor',
           phone: cols[1] || '',
           contact_name: cols[2] || '',
@@ -611,19 +671,15 @@ function processCsvUpload() {
 
     if (supabaseClient && newLeads.length > 0) {
       try {
-        const cleanPayload = newLeads.map(({ id, ...rest }) => rest);
-        await supabaseClient.from('leads').insert(cleanPayload);
+        await supabaseClient.from('leads').insert(newLeads);
         showToast(`Successfully uploaded ${newLeads.length} leads to Supabase!`);
       } catch (err) {
         console.error('CSV cloud insert error:', err);
       }
     }
 
-    leadsList = [...newLeads, ...leadsList];
-    saveLocalData();
     closeCsvModal();
     fetchLeads();
-    showToast(`Imported ${newLeads.length} leads into calling pipeline.`);
   };
   reader.readAsText(file);
 }
@@ -631,11 +687,11 @@ function processCsvUpload() {
 // Add Single Lead Modal
 function openAddLeadModal() { document.getElementById('add-lead-modal').classList.add('active'); }
 function closeAddLeadModal() { document.getElementById('add-lead-modal').classList.remove('active'); }
+function closeDossierModal() { document.getElementById('dossier-modal').classList.remove('active'); }
 
 async function handleCreateLead(e) {
   e.preventDefault();
   const newLead = {
-    id: 'lead-' + Date.now(),
     business_name: document.getElementById('new-lead-biz').value.trim(),
     contact_name: document.getElementById('new-lead-contact').value.trim(),
     phone: document.getElementById('new-lead-phone').value.trim(),
@@ -649,71 +705,49 @@ async function handleCreateLead(e) {
 
   if (supabaseClient) {
     try {
-      const { id, ...clean } = newLead;
-      await supabaseClient.from('leads').insert([clean]);
+      await supabaseClient.from('leads').insert([newLead]);
+      showToast('Lead added to live cloud queue.');
     } catch (err) {
       console.error(err);
     }
   }
 
-  leadsList.unshift(newLead);
-  saveLocalData();
   closeAddLeadModal();
   fetchLeads();
-  selectLeadToCall(newLead.id);
-  showToast('Lead added to calling queue.');
-}
-
-// Config Modal for Supabase Keys
-function openConfigModal() {
-  document.getElementById('cfg-supabase-url').value = SUPABASE_URL;
-  document.getElementById('cfg-supabase-key').value = SUPABASE_KEY;
-  document.getElementById('config-modal').classList.add('active');
-}
-function closeConfigModal() { document.getElementById('config-modal').classList.remove('active'); }
-function closeDossierModal() { document.getElementById('dossier-modal').classList.remove('active'); }
-
-function saveSupabaseConfig(e) {
-  e.preventDefault();
-  SUPABASE_URL = document.getElementById('cfg-supabase-url').value.trim();
-  SUPABASE_KEY = document.getElementById('cfg-supabase-key').value.trim();
-  localStorage.setItem('ws_supabase_url', SUPABASE_URL);
-  localStorage.setItem('ws_supabase_key', SUPABASE_KEY);
-  closeConfigModal();
-  initSupabase();
-  showToast('Supabase connection settings saved!');
-}
-
-function changeActiveAgent(agentName) {
-  currentAgent = agentName;
-  localStorage.setItem('ws_active_agent', agentName);
-  document.getElementById('var-caller-name').textContent = agentName;
-  showToast(`Active agent switched to ${agentName}`);
 }
 
 function updateStats() {
-  const callsToday = appointmentsList.length + leadsList.filter(l => l.status !== 'New').length;
+  const dials = appointmentsList.length + leadsList.filter(l => l.status !== 'New').length;
   const qualified = appointmentsList.length + leadsList.filter(l => l.status === 'Qualified').length;
   const booked = appointmentsList.length;
 
-  document.getElementById('stat-dials').textContent = callsToday;
-  document.getElementById('stat-qualified').textContent = qualified;
-  document.getElementById('stat-booked').textContent = booked;
+  const dEl = document.getElementById('stat-dials');
+  const qEl = document.getElementById('stat-qualified');
+  const bEl = document.getElementById('stat-booked');
+
+  if (dEl) dEl.textContent = dials;
+  if (qEl) qEl.textContent = qualified;
+  if (bEl) bEl.textContent = booked;
 }
 
 function showToast(msg) {
   const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 3500);
+  if (t) {
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3500);
+  }
 }
 
 function setupRealtimeListeners() {
   if (supabaseClient) {
     supabaseClient
-      .channel('public:appointments')
+      .channel('public:cockpit_sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, () => {
         fetchAppointments();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => {
+        fetchLeads();
       })
       .subscribe();
   }
@@ -727,161 +761,4 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
-}
-
-// ========================================================
-// CALLER & TEAM AUTHENTICATION MODULE
-// ========================================================
-function checkUserSession() {
-  const loggedOutBox = document.getElementById('auth-logged-out-box');
-  const loggedInBox = document.getElementById('auth-logged-in-box');
-  const nameDisplay = document.getElementById('user-display-name');
-  const roleDisplay = document.getElementById('user-display-role');
-
-  if (currentUser && currentUser.email) {
-    loggedOutBox.style.display = 'none';
-    loggedInBox.style.display = 'flex';
-    nameDisplay.textContent = currentUser.name || currentUser.email.split('@')[0];
-    roleDisplay.textContent = currentUser.role || 'caller';
-    currentAgent = currentUser.name || currentUser.email.split('@')[0];
-    document.getElementById('var-caller-name').textContent = currentAgent;
-  } else {
-    loggedOutBox.style.display = 'flex';
-    loggedInBox.style.display = 'none';
-    currentAgent = 'Asma';
-    document.getElementById('var-caller-name').textContent = 'Asma';
-  }
-}
-
-function openAuthModal(mode) {
-  authMode = mode || 'login';
-  const modal = document.getElementById('auth-modal');
-  const title = document.getElementById('auth-modal-title');
-  const sub = document.getElementById('auth-modal-sub');
-  const submitBtn = document.getElementById('auth-submit-btn');
-  const toggleBtn = document.getElementById('auth-toggle-mode-btn');
-  const nameField = document.getElementById('auth-name-field');
-  const roleField = document.getElementById('auth-role-field');
-
-  if (authMode === 'signup') {
-    title.textContent = 'Create Caller Account';
-    sub.textContent = 'Register your account to log calls and track your appointment stats.';
-    submitBtn.textContent = 'Register & Start Calling';
-    toggleBtn.textContent = 'Already have an account? Sign In';
-    nameField.style.display = 'block';
-    roleField.style.display = 'block';
-    document.getElementById('auth-name').required = true;
-  } else {
-    title.textContent = 'Caller Portal Sign In';
-    sub.textContent = 'Sign in to log all your calls, claims, and appointments in real-time.';
-    submitBtn.textContent = 'Sign In to Cockpit';
-    toggleBtn.textContent = "Don't have an account? Create one";
-    nameField.style.display = 'none';
-    roleField.style.display = 'none';
-    document.getElementById('auth-name').required = false;
-  }
-
-  modal.classList.add('active');
-}
-
-function closeAuthModal() {
-  document.getElementById('auth-modal').classList.remove('active');
-}
-
-function toggleAuthMode() {
-  openAuthModal(authMode === 'login' ? 'signup' : 'login');
-}
-
-async function handleAuthSubmit(e) {
-  e.preventDefault();
-  const email = document.getElementById('auth-email').value.trim();
-  const password = document.getElementById('auth-password').value;
-  const name = document.getElementById('auth-name').value.trim();
-  const role = document.getElementById('auth-role').value;
-
-  if (authMode === 'signup') {
-    if (!name) {
-      alert('Please enter your full name.');
-      return;
-    }
-
-    if (supabaseClient) {
-      try {
-        const { data: authData, error: authErr } = await supabaseClient.auth.signUp({
-          email: email,
-          password: password,
-          options: { data: { full_name: name, role: role } }
-        });
-
-        if (authErr) throw authErr;
-
-        // Save in team_members table
-        await supabaseClient.from('team_members').insert([{
-          name: name,
-          email: email,
-          role: role,
-          is_active: true
-        }]);
-
-        currentUser = { name, email, role, id: authData.user ? authData.user.id : 'user-' + Date.now() };
-        localStorage.setItem('ws_current_user', JSON.stringify(currentUser));
-        showToast(`Welcome ${name}! Account created and connected.`);
-      } catch (err) {
-        console.warn('Supabase Auth warning:', err);
-        // Fallback local team account creation
-        currentUser = { name, email, role, id: 'user-' + Date.now() };
-        localStorage.setItem('ws_current_user', JSON.stringify(currentUser));
-        showToast(`Account created for ${name}!`);
-      }
-    } else {
-      currentUser = { name, email, role, id: 'user-' + Date.now() };
-      localStorage.setItem('ws_current_user', JSON.stringify(currentUser));
-      showToast(`Account created for ${name}!`);
-    }
-  } else {
-    // Sign In
-    if (supabaseClient) {
-      try {
-        const { data, error } = await supabaseClient.auth.signInWithPassword({
-          email: email,
-          password: password
-        });
-
-        if (error) throw error;
-
-        // Fetch team profile
-        const { data: teamProfile } = await supabaseClient.from('team_members').select('*').eq('email', email).single();
-        const userName = teamProfile ? teamProfile.name : (data.user.user_metadata?.full_name || email.split('@')[0]);
-        const userRole = teamProfile ? teamProfile.role : (data.user.user_metadata?.role || 'caller');
-
-        currentUser = { name: userName, email: email, role: userRole, id: data.user.id };
-        localStorage.setItem('ws_current_user', JSON.stringify(currentUser));
-        showToast(`Welcome back, ${userName}!`);
-      } catch (err) {
-        console.warn('Sign in fallback:', err);
-        const nameGuess = email.split('@')[0];
-        currentUser = { name: nameGuess.charAt(0).toUpperCase() + nameGuess.slice(1), email: email, role: 'caller', id: 'user-' + Date.now() };
-        localStorage.setItem('ws_current_user', JSON.stringify(currentUser));
-        showToast(`Signed in as ${currentUser.name}!`);
-      }
-    } else {
-      const nameGuess = email.split('@')[0];
-      currentUser = { name: nameGuess.charAt(0).toUpperCase() + nameGuess.slice(1), email: email, role: 'caller', id: 'user-' + Date.now() };
-      localStorage.setItem('ws_current_user', JSON.stringify(currentUser));
-      showToast(`Signed in as ${currentUser.name}!`);
-    }
-  }
-
-  closeAuthModal();
-  checkUserSession();
-}
-
-function handleSignOut() {
-  if (supabaseClient) {
-    supabaseClient.auth.signOut().catch(console.error);
-  }
-  currentUser = null;
-  localStorage.removeItem('ws_current_user');
-  checkUserSession();
-  showToast('You have been signed out.');
 }

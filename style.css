@@ -58,6 +58,41 @@ body {
 .w-full { width: 100%; }
 .flex-1 { flex: 1; }
 
+/* Mandatory Auth Gate Overlay (Full Screen Security Barrier) */
+.auth-gate-overlay {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at 50% 30%, #150f24 0%, #070709 80%);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.auth-gate-card {
+  background: var(--bg-surface);
+  border: 1px solid rgba(163, 53, 249, 0.25);
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  width: 100%;
+  max-width: 440px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.9), 0 0 30px rgba(163, 53, 249, 0.1);
+}
+
+.auth-gate-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.auth-gate-toggle-box {
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 16px;
+  margin-top: 8px;
+}
+
 /* Top Navigation Bar */
 .top-nav {
   height: 60px;
