@@ -1,4 +1,5 @@
 // WebSmitherz Caller & Closer Cockpit Realtime Application Logic
+// Spec v1.0 Compliant Architecture
 
 // Production Supabase Cloud Credentials (Hardcoded & Locked)
 const SUPABASE_URL = 'https://ntcppyiidwaeohzvvnzx.supabase.co';
@@ -6,10 +7,12 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 let supabaseClient = null;
 
 // Application State
-let currentAgent = 'Agent';
+let currentAgent = 'Alex Morgan';
 let currentView = 'caller';
 let leadsList = [];
 let appointmentsList = [];
+let tasksList = [];
+let qualificationsMap = {}; // lead_id -> qualification
 let selectedLead = null;
 let callTimerInterval = null;
 let callTimerSeconds = 0;
@@ -59,10 +62,10 @@ function enforceAuthGate() {
   const roleDisplay = document.getElementById('user-display-role');
 
   if (currentUser && currentUser.email) {
-    gateScreen.style.display = 'none';
-    appWorkspace.style.display = 'flex';
-    nameDisplay.textContent = currentUser.name || currentUser.email.split('@')[0];
-    roleDisplay.textContent = currentUser.role || 'caller';
+    if (gateScreen) gateScreen.style.display = 'none';
+    if (appWorkspace) appWorkspace.style.display = 'flex';
+    if (nameDisplay) nameDisplay.textContent = currentUser.name || currentUser.email.split('@')[0];
+    if (roleDisplay) roleDisplay.textContent = currentUser.role || 'caller';
     currentAgent = currentUser.name || currentUser.email.split('@')[0];
     
     // Set dynamic script names
@@ -72,9 +75,10 @@ function enforceAuthGate() {
     // Load Live Data
     fetchLeads();
     fetchAppointments();
+    fetchTasks();
   } else {
-    gateScreen.style.display = 'flex';
-    appWorkspace.style.display = 'none';
+    if (gateScreen) gateScreen.style.display = 'flex';
+    if (appWorkspace) appWorkspace.style.display = 'none';
   }
 }
 
@@ -131,8 +135,8 @@ async function handleAuthSubmit(e) {
           throw authErr;
         }
 
-        // Record in team_members
-        await supabaseClient.from('team_members').insert([{
+        // Record in users table
+        await supabaseClient.from('users').insert([{
           name: name,
           email: email,
           role: role,
@@ -159,17 +163,16 @@ async function handleAuthSubmit(e) {
         });
 
         if (error) {
-          // If auth password check fails, check team_members table for caller
-          const { data: teamProfile } = await supabaseClient.from('team_members').select('*').eq('email', email).single();
-          if (teamProfile) {
-            currentUser = { name: teamProfile.name, email: teamProfile.email, role: teamProfile.role, id: teamProfile.id };
+          const { data: userProfile } = await supabaseClient.from('users').select('*').eq('email', email).single();
+          if (userProfile) {
+            currentUser = { name: userProfile.name, email: userProfile.email, role: userProfile.role, id: userProfile.id };
           } else {
             throw error;
           }
         } else {
-          const { data: teamProfile } = await supabaseClient.from('team_members').select('*').eq('email', email).single();
-          const userName = teamProfile ? teamProfile.name : (data.user.user_metadata?.full_name || email.split('@')[0]);
-          const userRole = teamProfile ? teamProfile.role : (data.user.user_metadata?.role || 'caller');
+          const { data: userProfile } = await supabaseClient.from('users').select('*').eq('email', email).single();
+          const userName = userProfile ? userProfile.name : (data.user.user_metadata?.full_name || email.split('@')[0]);
+          const userRole = userProfile ? userProfile.role : (data.user.user_metadata?.role || 'caller');
           currentUser = { name: userName, email: email, role: userRole, id: data.user.id };
         }
 
@@ -196,23 +199,43 @@ function handleSignOut() {
 }
 
 // ========================================================
-// CORE APPLICATION LOGIC
+// CORE NAVIGATION & INITIALIZATION
 // ========================================================
 function switchView(viewName) {
   currentView = viewName;
   document.querySelectorAll('.toggle-tab').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.view-panel').forEach(el => el.classList.remove('active'));
 
+  const btnMap = {
+    'caller': 'view-caller-btn',
+    'closer': 'view-closer-btn',
+    'tasks': 'view-tasks-btn',
+    'leads': 'view-leads-btn',
+    'kb': 'view-kb-btn'
+  };
+
+  const panelMap = {
+    'caller': 'caller-view',
+    'closer': 'closer-view',
+    'tasks': 'tasks-view',
+    'leads': 'leads-view',
+    'kb': 'kb-view'
+  };
+
+  if (btnMap[viewName] && document.getElementById(btnMap[viewName])) {
+    document.getElementById(btnMap[viewName]).classList.add('active');
+  }
+  if (panelMap[viewName] && document.getElementById(panelMap[viewName])) {
+    document.getElementById(panelMap[viewName]).classList.add('active');
+  }
+
   if (viewName === 'caller') {
-    document.getElementById('view-caller-btn').classList.add('active');
-    document.getElementById('caller-view').classList.add('active');
+    fetchLeads();
   } else if (viewName === 'closer') {
-    document.getElementById('view-closer-btn').classList.add('active');
-    document.getElementById('closer-view').classList.add('active');
     fetchAppointments();
+  } else if (viewName === 'tasks') {
+    fetchTasks();
   } else if (viewName === 'leads') {
-    document.getElementById('view-leads-btn').classList.add('active');
-    document.getElementById('leads-view').classList.add('active');
     fetchLeads();
   }
 }
@@ -233,7 +256,9 @@ function initSupabase() {
   }
 }
 
-// Fetch Leads (Supabase Cloud Only)
+// ========================================================
+// DATA FETCHING (SUPABASE CLOUD)
+// ========================================================
 async function fetchLeads() {
   if (!supabaseClient) return;
   try {
@@ -249,11 +274,10 @@ async function fetchLeads() {
   }
 }
 
-// Fetch Appointments
 async function fetchAppointments() {
   if (!supabaseClient) return;
   try {
-    const { data, error } = await supabaseClient.from('appointments').select('*').order('appointment_time', { ascending: true });
+    const { data, error } = await supabaseClient.from('appointments').select('*').order('appointment_time_utc', { ascending: true });
     if (!error && data) {
       appointmentsList = data;
       renderAppointments(appointmentsList);
@@ -264,9 +288,28 @@ async function fetchAppointments() {
   }
 }
 
-// Render Queue List in Caller View
+async function fetchTasks() {
+  if (!supabaseClient) return;
+  try {
+    const { data, error } = await supabaseClient.from('tasks').select('*').order('due_at', { ascending: true });
+    if (!error && data) {
+      tasksList = data;
+      renderTasksTable(tasksList);
+      const pendingCount = tasksList.filter(t => t.status === 'pending' || t.status === 'in_progress').length;
+      const countBadge = document.getElementById('pending-tasks-count');
+      if (countBadge) countBadge.textContent = pendingCount;
+    }
+  } catch (err) {
+    console.error('Failed to query Supabase tasks:', err);
+  }
+}
+
+// ========================================================
+// CALLER STUDIO & QUEUE LOGIC
+// ========================================================
 function renderQueueList(leads) {
   const container = document.getElementById('queue-list-container');
+  if (!container) return;
   if (!leads || leads.length === 0) {
     container.innerHTML = '<div class="empty-state">No leads in queue. Click "+ Add Lead" or "Import CSV" to start.</div>';
     return;
@@ -277,7 +320,7 @@ function renderQueueList(leads) {
       <div class="lead-item-biz">${escapeHtml(l.business_name)}</div>
       <div class="lead-item-sub">
         <span>${escapeHtml(l.phone)}</span>
-        <span class="lead-status-tag">${escapeHtml(l.status || 'New')}</span>
+        <span class="lead-status-tag ${l.do_not_call ? 'status-dnc' : ''}">${escapeHtml(l.status || 'new')}</span>
       </div>
     </div>
   `).join('');
@@ -287,7 +330,6 @@ function renderQueueList(leads) {
   }
 }
 
-// Select a Lead to Call and Populate Script & Qualification Form
 function selectLeadToCall(leadId) {
   selectedLead = leadsList.find(l => l.id == leadId);
   if (!selectedLead) return;
@@ -303,12 +345,21 @@ function selectLeadToCall(leadId) {
   const cleanPhone = (selectedLead.phone || '').replace(/[^0-9]/g, '');
   document.getElementById('active-biz-tel-link').href = `tel:${cleanPhone}`;
 
-  document.getElementById('var-contact-name').textContent = selectedLead.contact_name ? selectedLead.contact_name.split(' ')[0] : 'there';
-  document.getElementById('var-caller-name').textContent = currentAgent;
+  const contactFirst = selectedLead.contact_name ? selectedLead.contact_name.split(' ')[0] : 'there';
+  const varContact = document.getElementById('var-contact-name');
+  if (varContact) varContact.textContent = contactFirst;
+  const varCaller = document.getElementById('var-caller-name');
+  if (varCaller) varCaller.textContent = currentAgent;
 
-  document.getElementById('qual-contact-name').value = selectedLead.contact_name || '';
-  document.getElementById('qual-contact-phone').value = selectedLead.phone || '';
-  document.getElementById('qual-contact-email').value = selectedLead.email || '';
+  // Auto-set timezone according to state if known
+  const state = (selectedLead.state || '').toUpperCase();
+  const tzSelect = document.getElementById('qual-appt-tz');
+  if (tzSelect) {
+    if (['CA', 'WA', 'OR', 'NV'].includes(state)) tzSelect.value = 'America/Los_Angeles';
+    else if (['CO', 'AZ', 'UT', 'NM', 'MT', 'WY', 'ID'].includes(state)) tzSelect.value = 'America/Denver';
+    else if (['TX', 'IL', 'MO', 'MN', 'WI', 'OK', 'KS', 'IA', 'NE', 'TN', 'AL', 'MS', 'AR', 'LA'].includes(state)) tzSelect.value = 'America/Chicago';
+    else tzSelect.value = 'America/New_York';
+  }
 
   resetGate();
 }
@@ -339,19 +390,19 @@ function toggleCallTimer() {
       const secs = String(callTimerSeconds % 60).padStart(2, '0');
       timerDisplay.textContent = `${mins}:${secs}`;
     }, 1000);
-    showToast('Call started. Qualification battlecard active.');
+    showToast('Call started. Diagnostic battlecard active.');
   } else {
     isCalling = false;
     btn.textContent = 'Start Call';
     btn.classList.remove('calling');
     clearInterval(callTimerInterval);
-    showToast(`Call ended (${timerDisplay.textContent}). Please log disposition or book appointment.`);
+    showToast(`Call ended (${timerDisplay.textContent}). Lock qualification or log disposition.`);
   }
 }
 
 function showObjection(key) {
   document.querySelectorAll('.obj-pill').forEach(b => b.classList.remove('active'));
-  event.target.classList.add('active');
+  if (event && event.target) event.target.classList.add('active');
   renderObjection(key);
 }
 
@@ -370,44 +421,143 @@ function renderObjection(key) {
   }
 }
 
-// Gate Validation
-function validateGate() {
-  const g1 = document.getElementById('gate-decision-maker').checked && document.getElementById('qual-contact-name').value.trim().length > 1;
-  const g2 = document.getElementById('gate-bottleneck').checked && document.getElementById('qual-bottleneck-select').value !== '';
-  const g3 = document.getElementById('gate-capacity').checked && document.getElementById('qual-capacity-select').value !== '';
-  const g4 = document.getElementById('gate-deliverable').checked && document.getElementById('qual-contact-email').value.includes('@');
-  const apptTime = document.getElementById('qual-appt-datetime').value !== '';
+// ========================================================
+// TIMEZONE CONVERSION & PREVIEW (PROSPECT LOCAL + UTC)
+// ========================================================
+function updateTimezonePreview() {
+  const dtInput = document.getElementById('qual-appt-datetime').value;
+  const tzSelect = document.getElementById('qual-appt-tz').value;
+  const preview = document.getElementById('tz-live-preview');
 
-  const passedCount = [g1, g2, g3, g4].filter(Boolean).length;
+  if (!dtInput) {
+    preview.textContent = 'Select date & time above to preview timezones...';
+    return null;
+  }
+
+  try {
+    // Parse the input date and prospect timezone
+    // The datetime-local gives "YYYY-MM-DDTHH:MM"
+    const [datePart, timePart] = dtInput.split('T');
+    const [year, month, day] = datePart.split('-');
+    const [hours, mins] = timePart.split(':');
+
+    // Create date string formatted for timezone calculation
+    const isoString = `${year}-${month}-${day}T${hours}:${mins}:00`;
+    
+    // We compute the target UTC timestamp
+    // Use Intl to format the time in prospect timezone and user's local timezone
+    const prospectDate = new Date(isoString);
+
+    // Format Prospect Display
+    const prospectFormatted = `${datePart} ${hours}:${mins} (${tzSelect.split('/')[1].replace('_', ' ')})`;
+    
+    // Convert to UTC ISO string
+    const utcISO = new Date(prospectDate.getTime()).toISOString();
+    
+    // User Local Formatted
+    const userLocalFormatted = new Date().toLocaleTimeString('en-US', { timeZoneName: 'short' });
+
+    preview.innerHTML = `
+      <span>Prospect: <b>${prospectFormatted}</b></span> &bull; 
+      <span>UTC: <b>${utcISO.replace('T', ' ').substring(0, 16)} UTC</b></span>
+    `;
+
+    return { prospectDate, utcISO };
+  } catch (err) {
+    preview.textContent = 'Invalid date format selected.';
+    return null;
+  }
+}
+
+// ========================================================
+// QUALIFICATION VALIDATION & QUALITY GATES (G1–G5)
+// ========================================================
+function validateGate() {
+  // Q1 Decision Maker Check
+  const dmVal = document.querySelector('input[name="q_decision_maker"]:checked')?.value || 'yes';
+  const q1Valid = dmVal === 'yes';
+
+  // Q2 Marketing channels
+  const mktgChecked = Array.from(document.querySelectorAll('.q-mktg:checked')).map(c => c.value);
+  const q2Valid = mktgChecked.length > 0;
+
+  // Q4 Goals
+  const goalsChecked = Array.from(document.querySelectorAll('.q-goal:checked')).map(c => c.value);
+  const q4Valid = goalsChecked.length > 0;
+
+  // Q5 Pain point minimum 15 characters
+  const painVal = (document.getElementById('q_pain_point')?.value || '').trim();
+  const q5Valid = painVal.length >= 15;
+
+  // Q6 Interest level (Cannot be 'just_curious')
+  const interestVal = document.getElementById('q_interest_level')?.value || 'interested';
+  const q6Valid = interestVal !== 'just_curious';
+
+  // Q9 Prospect verbatim quote minimum 20 characters
+  const verbatimVal = (document.getElementById('q_prospect_said')?.value || '').trim();
+  const q9Valid = verbatimVal.length >= 20;
+
+  // G1–G5 Quality Gates
+  const g1 = document.getElementById('gate-g1')?.checked || false;
+  const g2 = document.getElementById('gate-g2')?.checked || false;
+  const g3 = document.getElementById('gate-g3')?.checked || false;
+  const g4 = document.getElementById('gate-g4')?.checked || false;
+  const g5 = document.getElementById('gate-g5')?.checked || false;
+  const allGatesPassed = g1 && g2 && g3 && g4 && g5;
+
+  // Date & Time selected
+  const apptTime = (document.getElementById('qual-appt-datetime')?.value || '') !== '';
+
   const lockStatus = document.getElementById('gate-lock-status');
   const submitBtn = document.getElementById('btn-submit-appointment');
 
-  if (passedCount === 4 && apptTime) {
-    lockStatus.className = 'pill-locked pill-unlocked';
-    lockStatus.textContent = 'UNLOCKED (4/4 Verified)';
-    submitBtn.disabled = false;
-    submitBtn.classList.remove('btn-disabled');
+  const gatesCount = [g1, g2, g3, g4, g5].filter(Boolean).length;
+
+  if (q1Valid && q2Valid && q4Valid && q5Valid && q6Valid && q9Valid && allGatesPassed && apptTime) {
+    if (lockStatus) {
+      lockStatus.className = 'pill-locked pill-unlocked';
+      lockStatus.textContent = 'G1–G5 UNLOCKED (5/5)';
+    }
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.classList.remove('btn-disabled');
+    }
   } else {
-    lockStatus.className = 'pill-locked';
-    lockStatus.textContent = `Locked (${passedCount}/4 Verified)`;
-    submitBtn.disabled = true;
-    submitBtn.classList.add('btn-disabled');
+    if (lockStatus) {
+      lockStatus.className = 'pill-locked';
+      if (!q6Valid) {
+        lockStatus.textContent = 'Disqualified (Just Curious)';
+      } else if (!q5Valid || !q9Valid) {
+        lockStatus.textContent = `Q5/Q9 Too Short (${gatesCount}/5 Gates)`;
+      } else {
+        lockStatus.textContent = `G1–G5 Locked (${gatesCount}/5 Gates)`;
+      }
+    }
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.classList.add('btn-disabled');
+    }
   }
 }
 
 function resetGate() {
-  document.getElementById('gate-decision-maker').checked = false;
-  document.getElementById('gate-bottleneck').checked = false;
-  document.getElementById('gate-capacity').checked = false;
-  document.getElementById('gate-deliverable').checked = false;
-  document.getElementById('qual-bottleneck-select').value = '';
-  document.getElementById('qual-capacity-select').value = '';
-  document.getElementById('qual-appt-datetime').value = '';
-  document.getElementById('qual-call-notes').value = '';
+  const g1 = document.getElementById('gate-g1'); if (g1) g1.checked = true;
+  const g2 = document.getElementById('gate-g2'); if (g2) g2.checked = true;
+  const g3 = document.getElementById('gate-g3'); if (g3) g3.checked = false;
+  const g4 = document.getElementById('gate-g4'); if (g4) g4.checked = false;
+  const g5 = document.getElementById('gate-g5'); if (g5) g5.checked = false;
+  
+  const pain = document.getElementById('q_pain_point'); if (pain) pain.value = '';
+  const verbatim = document.getElementById('q_prospect_said'); if (verbatim) verbatim.value = '';
+  const dt = document.getElementById('qual-appt-datetime'); if (dt) dt.value = '';
+  
+  updateTimezonePreview();
   validateGate();
 }
 
-// Book Appointment with Mandatory 4-Point Dossier
+// ========================================================
+// BOOK QUALIFIED APPOINTMENT & WRITE FULL DOSSIER
+// ========================================================
 async function handleBookAppointment(e) {
   e.preventDefault();
   if (!selectedLead) {
@@ -415,123 +565,264 @@ async function handleBookAppointment(e) {
     return;
   }
 
+  const tz = document.getElementById('qual-appt-tz').value;
+  const dtVal = document.getElementById('qual-appt-datetime').value;
+  const [apptDatePart, apptTimePart] = dtVal.split('T');
+  const tzCalc = updateTimezonePreview();
+  const utcISO = tzCalc ? tzCalc.utcISO : new Date().toISOString();
+
+  const dmVal = document.querySelector('input[name="q_decision_maker"]:checked')?.value || 'yes';
+  const mktgChecked = Array.from(document.querySelectorAll('.q-mktg:checked')).map(c => c.value);
+  const goalsChecked = Array.from(document.querySelectorAll('.q-goal:checked')).map(c => c.value);
+  const commChecked = Array.from(document.querySelectorAll('.q-comm:checked')).map(c => c.value);
+
+  const qualData = {
+    lead_id: selectedLead.id,
+    decision_maker: dmVal,
+    current_marketing: mktgChecked,
+    has_website: document.getElementById('q_has_website').value,
+    main_goal: goalsChecked,
+    pain_point: document.getElementById('q_pain_point').value.trim(),
+    interest_level: document.getElementById('q_interest_level').value,
+    timeline: document.getElementById('q_timeline').value,
+    budget_expectation: document.getElementById('q_budget').value,
+    prospect_verbatim: document.getElementById('q_prospect_said').value.trim(),
+    created_by: currentUser?.id || null
+  };
+
   const apptData = {
     lead_id: selectedLead.id,
-    business_name: selectedLead.business_name,
-    contact_name: document.getElementById('qual-contact-name').value.trim(),
-    phone: document.getElementById('qual-contact-phone').value.trim(),
-    email: document.getElementById('qual-contact-email').value.trim(),
-    website: selectedLead.website || '',
-    decision_maker_confirmed: document.getElementById('gate-decision-maker').checked,
-    lead_generation_bottleneck: document.getElementById('qual-bottleneck-select').value,
-    monthly_job_capacity: document.getElementById('qual-capacity-select').value,
-    agreed_deliverable: '1-Page Forensic Mobile Latency & Map Audit',
-    appointment_time: document.getElementById('qual-appt-datetime').value,
-    timezone: document.getElementById('qual-appt-tz').value,
-    assigned_closer: document.getElementById('qual-assigned-closer').value,
-    booked_by_caller: currentAgent,
-    call_recording_or_notes: document.getElementById('qual-call-notes').value.trim(),
-    status: 'Scheduled',
+    caller_id: currentUser?.id || null,
+    closer_id: null,
+    scheduled_date: apptDatePart,
+    scheduled_time: apptTimePart,
+    prospect_timezone: tz,
+    appointment_time_utc: utcISO,
+    platform: document.getElementById('qual-appt-platform').value,
+    what_was_promised: commChecked,
+    gate_business_consultation: document.getElementById('gate-g1').checked,
+    gate_genuine_interest: document.getElementById('gate-g2').checked,
+    gate_specific_datetime: document.getElementById('gate-g3').checked,
+    gate_contact_method_clear: document.getElementById('gate-g4').checked,
+    gate_contact_verified: document.getElementById('gate-g5').checked,
+    status: 'scheduled',
     created_at: new Date().toISOString()
   };
 
   if (supabaseClient) {
     try {
-      const { error: apptErr } = await supabaseClient.from('appointments').insert([apptData]);
-      if (apptErr) throw apptErr;
+      // 1. Insert structured qualification
+      const { data: qRes, error: qErr } = await supabaseClient.from('qualifications').insert([qualData]).select();
+      if (qErr) console.warn('Qualification table insert:', qErr);
 
-      await supabaseClient.from('leads').update({ status: 'Appointment Booked' }).eq('id', selectedLead.id);
-      
-      // Log Call Action
+      // 2. Insert Appointment
+      const { data: aRes, error: aErr } = await supabaseClient.from('appointments').insert([apptData]).select();
+      if (aErr) throw aErr;
+
+      // 3. Update Lead Status
+      await supabaseClient.from('leads').update({
+        status: 'appointment',
+        appointment_date: utcISO,
+        lead_score: 90
+      }).eq('id', selectedLead.id);
+
+      // 4. Log Call to call_logs
       await supabaseClient.from('call_logs').insert([{
         lead_id: selectedLead.id,
-        caller_name: currentAgent,
-        call_duration_seconds: callTimerSeconds,
-        disposition: 'Appointment Booked',
-        notes: apptData.call_recording_or_notes
+        user_id: currentUser?.id || null,
+        duration_seconds: callTimerSeconds,
+        outcome: 'booked',
+        notes: `Booked appointment for ${dtVal} (${tz}). Pain: ${qualData.pain_point}`,
+        created_at: new Date().toISOString()
       }]);
 
-      showToast(`Appointment locked for ${apptData.assigned_closer}! Dossier generated.`);
+      // 5. Create Reminder Tasks
+      await supabaseClient.from('tasks').insert([
+        {
+          lead_id: selectedLead.id,
+          task_type: 'confirmation',
+          title: `Send Appointment Confirmation: ${selectedLead.business_name}`,
+          description: `Send 1-page PDF audit and calendar invite to ${selectedLead.contact_name} at ${selectedLead.phone}.`,
+          due_at: new Date().toISOString(),
+          priority: 'high',
+          status: 'pending'
+        },
+        {
+          lead_id: selectedLead.id,
+          task_type: 'follow_up',
+          title: `Closer Briefing: ${selectedLead.business_name}`,
+          description: `Conduct diagnostic call on ${dtVal} (${tz}). Agreed deliverable: 1-Page Forensic Audit.`,
+          due_at: utcISO,
+          priority: 'urgent',
+          status: 'pending'
+        }
+      ]);
+
+      // 6. Log to Activity Log
+      await supabaseClient.from('activity_log').insert([{
+        entity_type: 'appointment',
+        entity_id: aRes ? aRes[0]?.id : null,
+        action: 'booked',
+        user_id: currentUser?.id || null,
+        details: {
+          business_name: selectedLead.business_name,
+          scheduled_for: utcISO,
+          closer: document.getElementById('qual-assigned-closer').value
+        }
+      }]);
+
+      showToast(`Appointment locked and synced! 2 automated tasks generated.`);
     } catch (err) {
-      console.error('Supabase write error:', err);
-      alert('Error saving appointment to cloud database.');
+      console.error('Supabase booking error:', err);
+      alert('Error saving appointment. Please check network connection.');
     }
   }
 
   resetGate();
   fetchLeads();
   fetchAppointments();
+  fetchTasks();
 }
 
-// Quick Disposition
-async function quickLogDisposition(disposition) {
+// ========================================================
+// CALL DISPOSITION LOGGING & ACTION CREATION
+// ========================================================
+async function quickLogDisposition(outcome) {
   if (!selectedLead) {
     alert('Please select a lead first.');
     return;
   }
 
+  let leadStatus = 'contacted';
+  let objectionType = null;
+  let nextActionDate = null;
+  let notes = `Call outcome: ${outcome}`;
+
+  if (outcome === 'no_answer') {
+    leadStatus = 'attempted';
+  } else if (outcome === 'voicemail') {
+    leadStatus = 'attempted';
+    notes = 'Left standardized forensic mobile audit voicemail.';
+  } else if (outcome === 'busy') {
+    leadStatus = 'attempted';
+    objectionType = 'busy';
+  } else if (outcome === 'callback_requested') {
+    leadStatus = 'callback';
+    const hours = prompt('In how many hours should the callback be scheduled? (e.g. 2, 4, 24)', '24');
+    const delay = parseInt(hours || '24', 10) * 3600 * 1000;
+    nextActionDate = new Date(Date.now() + delay).toISOString();
+    notes = `Prospect requested callback in ${hours} hours.`;
+  } else if (outcome === 'not_interested') {
+    leadStatus = 'lost';
+    objectionType = 'not_interested';
+  } else if (outcome === 'dnc') {
+    leadStatus = 'do_not_call';
+    notes = 'Prospect explicitly requested Do Not Call.';
+  }
+
   if (supabaseClient) {
     try {
-      await supabaseClient.from('leads').update({ status: disposition }).eq('id', selectedLead.id);
+      // Update Lead
+      const leadUpdate = {
+        status: leadStatus,
+        last_contacted_at: new Date().toISOString()
+      };
+      if (outcome === 'dnc') {
+        leadUpdate.do_not_call = true;
+        leadUpdate.dnc_reason = 'Prospect requested DNC during cold call';
+        leadUpdate.dnc_date = new Date().toISOString();
+      }
+      await supabaseClient.from('leads').update(leadUpdate).eq('id', selectedLead.id);
+
+      // Insert Call Log
       await supabaseClient.from('call_logs').insert([{
         lead_id: selectedLead.id,
-        caller_name: currentAgent,
-        call_duration_seconds: callTimerSeconds,
-        disposition: disposition,
+        user_id: currentUser?.id || null,
+        duration_seconds: callTimerSeconds,
+        outcome: outcome,
+        objection: objectionType,
+        notes: notes,
+        next_action_at: nextActionDate,
         created_at: new Date().toISOString()
       }]);
-      showToast(`Logged disposition: ${disposition}`);
+
+      // If callback requested, create task
+      if (outcome === 'callback_requested' && nextActionDate) {
+        await supabaseClient.from('tasks').insert([{
+          lead_id: selectedLead.id,
+          task_type: 'callback',
+          title: `Callback Due: ${selectedLead.business_name}`,
+          description: `Call back ${selectedLead.contact_name || 'Owner'} at ${selectedLead.phone}.`,
+          due_at: nextActionDate,
+          priority: 'high',
+          status: 'pending'
+        }]);
+      }
+
+      // Log to Activity Log
+      await supabaseClient.from('activity_log').insert([{
+        entity_type: 'call_log',
+        entity_id: selectedLead.id,
+        action: 'call_attempt',
+        user_id: currentUser?.id || null,
+        details: { outcome, duration: callTimerSeconds, notes }
+      }]);
+
+      showToast(`Logged disposition: ${outcome.replace('_', ' ').toUpperCase()}`);
     } catch (err) {
-      console.error(err);
+      console.error('Failed to log disposition:', err);
     }
   }
 
   fetchLeads();
+  fetchTasks();
 }
 
-// Render Closer Dossiers Grid
+// ========================================================
+// CLOSER QUEUE & 1-PAGE DOSSIERS
+// ========================================================
 function renderAppointments(appts) {
   const grid = document.getElementById('closer-appointments-grid');
   const countBadge = document.getElementById('pending-appointments-count');
   
-  const pending = appts.filter(a => a.status === 'Scheduled' || a.status === 'Confirmed');
+  const pending = appts.filter(a => a.status === 'scheduled' || a.status === 'confirmed');
   if (countBadge) countBadge.textContent = pending.length;
 
+  if (!grid) return;
   if (!appts || appts.length === 0) {
     grid.innerHTML = '<div class="empty-state">No appointments booked yet. Completed qualification calls will appear here in real-time.</div>';
     return;
   }
 
   grid.innerHTML = appts.map(a => {
-    const apptDate = new Date(a.appointment_time).toLocaleString('en-US', {
-      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true
-    });
+    const lead = leadsList.find(l => l.id === a.lead_id) || {};
+    const dateDisplay = `${a.scheduled_date || ''} at ${a.scheduled_time || ''} ${a.prospect_timezone || 'CST'}`;
+    const promised = Array.isArray(a.what_was_promised) ? a.what_was_promised.join(', ') : '1-Page Forensic Audit';
 
     return `
       <div class="dossier-card">
         <div class="dossier-top">
           <div>
-            <h3 class="font-syne text-sm">${escapeHtml(a.business_name)}</h3>
-            <span class="text-xs text-muted">Owner: <b>${escapeHtml(a.contact_name)}</b></span>
+            <h3 class="font-syne text-sm">${escapeHtml(lead.business_name || 'Contractor Lead')}</h3>
+            <span class="text-xs text-muted">Owner: <b>${escapeHtml(lead.contact_name || 'Owner')}</b></span>
           </div>
-          <span class="dossier-time-badge">${apptDate} ${escapeHtml(a.timezone || 'EST')}</span>
+          <span class="dossier-time-badge">${escapeHtml(dateDisplay)}</span>
         </div>
 
         <div class="dossier-pain-box">
-          <span class="text-xs font-mono text-muted block mb-1">AUDITED BOTTLENECK ADMITTED:</span>
-          <b>${escapeHtml(a.lead_generation_bottleneck)}</b>
+          <span class="text-xs font-mono text-muted block mb-1">PLATFORM & PROMISED ITEMS:</span>
+          <b>${escapeHtml(a.platform || 'Phone Call')} &bull; Deliverables: ${escapeHtml(promised)}</b>
         </div>
 
         <div class="dossier-metrics-list">
-          <span>Phone: <b>${escapeHtml(a.phone)}</b></span>
-          <span>Email: <b>${escapeHtml(a.email)}</b></span>
-          <span>Capacity Target: <b>${escapeHtml(a.monthly_job_capacity || 'N/A')}</b></span>
-          <span>Booked By: <b>${escapeHtml(a.booked_by_caller)}</b> &rarr; Assigned to: <b>${escapeHtml(a.assigned_closer)}</b></span>
-          ${a.call_recording_or_notes ? `<span class="mt-1 text-xs">Notes: <i>${escapeHtml(a.call_recording_or_notes)}</i></span>` : ''}
+          <span>Phone: <b>${escapeHtml(lead.phone || '—')}</b></span>
+          <span>Location: <b>${escapeHtml(lead.city || '')}, ${escapeHtml(lead.state || 'TX')}</b></span>
+          <span>Quality Gates: <b>${a.gate_business_consultation && a.gate_specific_datetime ? '5/5 Passed' : 'Verified'}</b></span>
+          <span>UTC Timestamp: <b class="font-mono text-xs">${escapeHtml(a.appointment_time_utc ? a.appointment_time_utc.substring(0, 16) : 'N/A')}</b></span>
         </div>
 
         <div class="dossier-footer">
-          <span class="lead-status-tag">${escapeHtml(a.status)}</span>
+          <span class="lead-status-tag ${a.status === 'closed' ? 'status-won' : ''}">${escapeHtml(a.status || 'scheduled')}</span>
           <button class="btn-sm btn-secondary" onclick="openDossierModal('${a.id}')">Open Call Dossier & Update</button>
         </div>
       </div>
@@ -539,44 +830,57 @@ function renderAppointments(appts) {
   }).join('');
 }
 
-// Open Closer Dossier & Update Status
+function filterAppointments(statusFilter) {
+  document.querySelectorAll('.closer-filters .filter-pill').forEach(b => b.classList.remove('active'));
+  if (event && event.target) event.target.classList.add('active');
+
+  if (statusFilter === 'all') {
+    renderAppointments(appointmentsList);
+  } else {
+    const filtered = appointmentsList.filter(a => (a.status || '').toLowerCase() === statusFilter.toLowerCase());
+    renderAppointments(filtered);
+  }
+}
+
 function openDossierModal(apptId) {
   const a = appointmentsList.find(item => item.id == apptId);
   if (!a) return;
+  const lead = leadsList.find(l => l.id == a.lead_id) || {};
 
   const content = document.getElementById('dossier-content');
   content.innerHTML = `
     <div class="dossier-modal-inner">
-      <div class="lead-meta-row mb-3">
-        <span>Business: <b>${escapeHtml(a.business_name)}</b></span>
-        <span>Decision Maker: <b>${escapeHtml(a.contact_name)}</b></span>
-        <span>Phone: <b>${escapeHtml(a.phone)}</b></span>
+      <div class="lead-meta-row mb-3" style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+        <span>Business: <b>${escapeHtml(lead.business_name || 'Prospect')}</b></span>
+        <span>Owner / Contact: <b>${escapeHtml(lead.contact_name || 'N/A')}</b></span>
+        <span>Phone: <a href="tel:${escapeHtml(lead.phone || '')}" class="text-accent"><b>${escapeHtml(lead.phone || 'N/A')}</b></a></span>
+        <span>Time: <b>${escapeHtml(a.scheduled_date)} ${escapeHtml(a.scheduled_time)} (${escapeHtml(a.prospect_timezone)})</b></span>
       </div>
 
-      <div class="p-3 bg-obsidian rounded border border-subtle mb-3">
-        <h4 class="text-xs text-accent font-mono mb-1">1-PAGE FORENSIC CLOSING ANGLE:</h4>
-        <p class="text-sm">"Hi ${escapeHtml(a.contact_name.split(' ')[0])}, this is ${escapeHtml(a.assigned_closer)} from WebSmitherz. ${escapeHtml(a.booked_by_caller)} scheduled this briefing with you because you mentioned ${escapeHtml(a.lead_generation_bottleneck.toLowerCase())}. I have your mobile site latency and local map audit pulled up right now..."</p>
+      <div class="p-3 bg-obsidian rounded border border-subtle mb-3" style="background:#060609; padding:12px; border-radius:8px; border:1px solid var(--border-subtle);">
+        <h4 class="text-xs text-accent font-mono mb-1">1-PAGE FORENSIC CLOSING SCRIPT:</h4>
+        <p class="text-sm">"Hi ${escapeHtml(lead.contact_name ? lead.contact_name.split(' ')[0] : 'there')}, this is our senior systems engineer from WebSmitherz. We scheduled this briefing because our mobile latency audit flagged two friction points on your mobile estimate form that are dropping inbound calls. I have your live speed teardown and map ranking data on my screen right now..."</p>
       </div>
 
       <div class="form-group mb-3">
-        <label>Update Appointment Outcome:</label>
+        <label>Update Closer Outcome:</label>
         <select id="closer-outcome-status" class="w-full">
-          <option value="Scheduled" ${a.status === 'Scheduled' ? 'selected' : ''}>Scheduled</option>
-          <option value="Showed / Pitched" ${a.status === 'Showed / Pitched' ? 'selected' : ''}>Showed / Pitched</option>
-          <option value="Won / Closed" ${a.status === 'Won / Closed' ? 'selected' : ''}>Won / Closed</option>
-          <option value="Rescheduled" ${a.status === 'Rescheduled' ? 'selected' : ''}>Rescheduled</option>
-          <option value="No Show / Voicemail" ${a.status === 'No Show / Voicemail' ? 'selected' : ''}>No Show / Voicemail</option>
-          <option value="Call Dropped / Hung Up" ${a.status === 'Call Dropped / Hung Up' ? 'selected' : ''}>Call Dropped / Hung Up</option>
-          <option value="Lost / Disqualified" ${a.status === 'Lost / Disqualified' ? 'selected' : ''}>Lost / Disqualified</option>
+          <option value="scheduled" ${a.status === 'scheduled' ? 'selected' : ''}>Scheduled</option>
+          <option value="completed" ${a.status === 'completed' ? 'selected' : ''}>Completed / Pitched</option>
+          <option value="closed" ${a.status === 'closed' ? 'selected' : ''}>Won / Closed Deal</option>
+          <option value="proposal_sent" ${a.status === 'proposal_sent' ? 'selected' : ''}>Proposal Sent</option>
+          <option value="rescheduled" ${a.status === 'rescheduled' ? 'selected' : ''}>Rescheduled</option>
+          <option value="no_show" ${a.status === 'no_show' ? 'selected' : ''}>No Show / Missed Call</option>
+          <option value="disqualified" ${a.status === 'disqualified' ? 'selected' : ''}>Disqualified</option>
         </select>
       </div>
 
       <div class="form-group mb-4">
         <label>Closer Debrief Notes:</label>
-        <textarea id="closer-notes-input" rows="3" class="w-full" placeholder="Enter post-call notes, proposal value, objections raised...">${escapeHtml(a.closer_notes || '')}</textarea>
+        <textarea id="closer-notes-input" rows="3" class="w-full" placeholder="Enter post-call briefing notes, proposal price quoted, client objections...">${escapeHtml(a.closer_notes || '')}</textarea>
       </div>
 
-      <div class="modal-footer">
+      <div class="modal-footer" style="display:flex; justify-content:flex-end; gap:8px;">
         <button class="btn-ghost" onclick="closeDossierModal()">Close</button>
         <button class="btn-primary" onclick="saveCloserOutcome('${a.id}')">Save & Update Status</button>
       </div>
@@ -589,14 +893,30 @@ function openDossierModal(apptId) {
 async function saveCloserOutcome(apptId) {
   const newStatus = document.getElementById('closer-outcome-status').value;
   const notes = document.getElementById('closer-notes-input').value.trim();
+  const a = appointmentsList.find(item => item.id == apptId);
 
   if (supabaseClient) {
     try {
       await supabaseClient.from('appointments').update({
         status: newStatus,
         closer_notes: notes,
+        outcome: newStatus,
         updated_at: new Date().toISOString()
       }).eq('id', apptId);
+
+      // If no-show, create immediate recovery task
+      if (newStatus === 'no_show' && a) {
+        await supabaseClient.from('tasks').insert([{
+          lead_id: a.lead_id,
+          task_type: 'recovery',
+          title: `No-Show Recovery Call: Appointment #${apptId}`,
+          description: `Follow up via phone/SMS to reschedule missed audit briefing.`,
+          due_at: new Date(Date.now() + 3600 * 1000).toISOString(),
+          priority: 'urgent',
+          status: 'pending'
+        }]);
+      }
+
       showToast('Closer outcome updated in real-time.');
     } catch (err) {
       console.error(err);
@@ -605,11 +925,83 @@ async function saveCloserOutcome(apptId) {
 
   closeDossierModal();
   fetchAppointments();
+  fetchTasks();
 }
 
-// Render Leads Table
+// ========================================================
+// TASKS & CALLBACK QUEUE
+// ========================================================
+function renderTasksTable(tasks) {
+  const tbody = document.getElementById('tasks-table-body');
+  if (!tbody) return;
+
+  if (!tasks || tasks.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-6">No tasks found. Callbacks and automated recoveries will appear here.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = tasks.map(t => {
+    const lead = leadsList.find(l => l.id === t.lead_id) || {};
+    const dueFormatted = t.due_at ? new Date(t.due_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'No Date';
+
+    return `
+      <tr>
+        <td>
+          <b>${escapeHtml(t.title)}</b>
+          <div class="text-xs text-muted">${escapeHtml(t.description || '')}</div>
+        </td>
+        <td><span class="pill-locked" style="font-size:10px;">${escapeHtml(t.task_type)}</span></td>
+        <td><span class="badge-danger" style="font-size:10px;">${escapeHtml(t.priority)}</span></td>
+        <td>${escapeHtml(dueFormatted)}</td>
+        <td>${escapeHtml(lead.contact_name || 'Agent')}</td>
+        <td><span class="lead-status-tag">${escapeHtml(t.status)}</span></td>
+        <td>
+          ${t.status !== 'completed' ? `
+            <button class="btn-sm btn-primary" onclick="completeTask('${t.id}')">Mark Complete</button>
+          ` : '<span class="text-emerald text-xs">Done</span>'}
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function filterTasks(type) {
+  document.querySelectorAll('#tasks-view .filter-pill').forEach(b => b.classList.remove('active'));
+  if (event && event.target) event.target.classList.add('active');
+
+  if (type === 'all') {
+    renderTasksTable(tasksList);
+  } else if (type === 'open') {
+    renderTasksTable(tasksList.filter(t => t.status === 'pending' || t.status === 'in_progress'));
+  } else if (type === 'callback') {
+    renderTasksTable(tasksList.filter(t => t.task_type === 'callback'));
+  } else if (type === 'recovery') {
+    renderTasksTable(tasksList.filter(t => t.task_type === 'recovery'));
+  }
+}
+
+async function completeTask(taskId) {
+  if (supabaseClient) {
+    try {
+      await supabaseClient.from('tasks').update({
+        status: 'completed',
+        completed_at: new Date().toISOString()
+      }).eq('id', taskId);
+      showToast('Task marked as completed.');
+    } catch (err) {
+      console.error(err);
+    }
+  }
+  fetchTasks();
+}
+
+// ========================================================
+// LEADS PIPELINE & CSV INGESTION
+// ========================================================
 function renderLeadsTable(leads) {
   const tbody = document.getElementById('leads-table-body');
+  if (!tbody) return;
+
   if (!leads || leads.length === 0) {
     tbody.innerHTML = '<tr><td colspan="7" class="text-center py-6">No leads found. Click "+ Add Single Lead" or "Import CSV".</td></tr>';
     return;
@@ -621,8 +1013,8 @@ function renderLeadsTable(leads) {
       <td>${escapeHtml(l.contact_name || '—')}</td>
       <td><a href="tel:${escapeHtml(l.phone)}" class="text-accent">${escapeHtml(l.phone)}</a></td>
       <td>${escapeHtml((l.city ? l.city + ', ' : '') + (l.state || ''))}</td>
-      <td><span class="lead-status-tag">${escapeHtml(l.status || 'New')}</span></td>
-      <td>${escapeHtml(l.assigned_caller || 'Asma')}</td>
+      <td><span class="lead-status-tag ${l.do_not_call ? 'status-dnc' : ''}">${escapeHtml(l.status || 'new')}</span></td>
+      <td>${escapeHtml(currentAgent)}</td>
       <td>
         <button class="btn-sm btn-ghost" onclick="switchView('caller'); selectLeadToCall('${l.id}')">Call in Studio</button>
       </td>
@@ -630,9 +1022,11 @@ function renderLeadsTable(leads) {
   `).join('');
 }
 
-// CSV Lead Import
 function openCsvImportModal() { document.getElementById('csv-modal').classList.add('active'); }
 function closeCsvModal() { document.getElementById('csv-modal').classList.remove('active'); }
+function openAddLeadModal() { document.getElementById('add-lead-modal').classList.add('active'); }
+function closeAddLeadModal() { document.getElementById('add-lead-modal').classList.remove('active'); }
+function closeDossierModal() { document.getElementById('dossier-modal').classList.remove('active'); }
 
 function processCsvUpload() {
   const fileInput = document.getElementById('csv-file-input');
@@ -662,8 +1056,7 @@ function processCsvUpload() {
           website: cols[3] || '',
           city: cols[4] || '',
           state: cols[5] || 'TX',
-          status: 'New',
-          assigned_caller: currentAgent,
+          status: 'new',
           created_at: new Date().toISOString()
         });
       }
@@ -684,11 +1077,6 @@ function processCsvUpload() {
   reader.readAsText(file);
 }
 
-// Add Single Lead Modal
-function openAddLeadModal() { document.getElementById('add-lead-modal').classList.add('active'); }
-function closeAddLeadModal() { document.getElementById('add-lead-modal').classList.remove('active'); }
-function closeDossierModal() { document.getElementById('dossier-modal').classList.remove('active'); }
-
 async function handleCreateLead(e) {
   e.preventDefault();
   const newLead = {
@@ -698,8 +1086,7 @@ async function handleCreateLead(e) {
     website: document.getElementById('new-lead-web').value.trim(),
     city: document.getElementById('new-lead-city').value.trim(),
     state: document.getElementById('new-lead-state').value.trim() || 'TX',
-    status: 'New',
-    assigned_caller: currentAgent,
+    status: 'new',
     created_at: new Date().toISOString()
   };
 
@@ -717,8 +1104,8 @@ async function handleCreateLead(e) {
 }
 
 function updateStats() {
-  const dials = appointmentsList.length + leadsList.filter(l => l.status !== 'New').length;
-  const qualified = appointmentsList.length + leadsList.filter(l => l.status === 'Qualified').length;
+  const dials = appointmentsList.length + leadsList.filter(l => l.status !== 'new').length;
+  const qualified = appointmentsList.length + leadsList.filter(l => l.status === 'qualified' || l.status === 'appointment').length;
   const booked = appointmentsList.length;
 
   const dEl = document.getElementById('stat-dials');
@@ -749,6 +1136,9 @@ function setupRealtimeListeners() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => {
         fetchLeads();
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => {
+        fetchTasks();
+      })
       .subscribe();
   }
 }
@@ -762,3 +1152,4 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
+
