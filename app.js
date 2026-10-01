@@ -311,7 +311,7 @@ function renderQueueList(leads) {
   const container = document.getElementById('queue-list-container');
   if (!container) return;
   if (!leads || leads.length === 0) {
-    container.innerHTML = '<div class="empty-state">No leads in queue. Click "+ Add Lead" or "Import CSV" to start.</div>';
+    container.innerHTML = '<div class="empty-state">No leads logged yet. Use "Log a New Lead I Found" to start prospecting.</div>';
     return;
   }
 
