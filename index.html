@@ -3,79 +3,661 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WebSmitherz Cockpit — Caller & Closer Command</title>
+  <title>WebSmitherz Caller Cockpit</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   
   <style>
-    /* ========================================================= */
-    /* WEBSMITHERZ CORE DESIGN TOKENS */
-    /* ========================================================= */
-    :root {
-      --bg-obsidian: #050507;
-      --bg-card: #0d0d12;
-      --bg-elevated: #14141c;
-      --border-subtle: rgba(255, 255, 255, 0.08);
-      --border-focus: #a335f9;
-      --text-primary: #f8fafc;
-      --text-muted: #94a3b8;
-      --text-dim: #64748b;
-      --accent: #a335f9;
-      --accent-light: #c084fc;
-      --accent-glow: rgba(163, 53, 249, 0.2);
-      --emerald: #10b981;
-      --emerald-glow: rgba(16, 185, 129, 0.2);
-      --rose: #f43f5e;
-      --amber: #f59e0b;
-      --radius-sm: 6px;
-      --radius-md: 10px;
-      --radius-lg: 14px;
-    }
-
     * { box-sizing: border-box; margin: 0; padding: 0; }
     
     body {
-      background-color: var(--bg-obsidian);
+      background-color: var(--bg-page);
       color: var(--text-primary);
-      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-      font-size: 13.5px;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 14px;
       line-height: 1.5;
-      height: 100vh;
+      min-height: 100vh;
       display: flex;
       flex-direction: column;
+    }
+
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+    /* Top Navigation Header */
+    .top-nav {
+      background: var(--bg-white);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .nav-brand-badge {
+      width: 28px;
+      height: 28px;
+      background: var(--accent);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: 800;
+      font-size: 13px;
+    }
+
+    .nav-brand-title {
+      font-weight: 700;
+      font-size: 15px;
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+    }
+
+    .nav-tabs {
+      display: flex;
+      gap: 4px;
+    }
+
+    .toggle-tab {
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      cursor: pointer;
+      border: 1px solid transparent;
+      background: transparent;
+      transition: all 0.15s;
+    }
+
+    .toggle-tab:hover {
+      background: var(--bg-subtle);
+      color: var(--text-primary);
+    }
+
+    .toggle-tab.active {
+      background: var(--accent-light);
+      color: var(--accent);
+      border-color: rgba(79, 70, 229, 0.2);
+    }
+
+    .nav-user {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #cbd5e1;
+    }
+
+    .status-dot.connected {
+      background: var(--green);
+    }
+
+    .user-profile {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .user-avatar {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .user-meta {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .user-name {
+      font-weight: 600;
+      font-size: 13px;
+      line-height: 1.2;
+    }
+
+    .user-role {
+      font-size: 11px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .btn-signout {
+      padding: 4px 10px;
+      border: 1px solid var(--border);
+      background: transparent;
+      border-radius: 6px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+
+    .btn-signout:hover {
+      background: var(--bg-subtle);
+      color: var(--red);
+      border-color: var(--red);
+    }
+
+    /* Views Container */
+    .view-panel {
+      display: none;
+      padding: 24px 20px 60px;
+      max-width: 900px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .view-panel.active {
+      display: block;
+    }
+
+    /* Metrics Summary Bar */
+    .metrics-bar {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .metric-card {
+      background: var(--bg-white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 12px 16px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .metric-val {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--text-primary);
+      line-height: 1.2;
+    }
+
+    .metric-lbl {
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-weight: 500;
+      margin-top: 2px;
+    }
+
+    /* Linear Step Card Architecture */
+    .step-card {
+      background: var(--bg-white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 16px;
       overflow: hidden;
     }
 
-    .font-syne { font-family: 'Syne', sans-serif; font-weight: 700; }
-    .font-mono { font-family: 'JetBrains Mono', monospace; }
-    .text-xs { font-size: 11px; }
-    .text-sm { font-size: 13px; }
-    .text-xl { font-size: 19px; }
-    .text-muted { color: var(--text-muted); }
-    .text-accent { color: var(--accent-light); }
-    .text-emerald { color: var(--emerald); }
-    .text-rose { color: var(--rose); }
-    .block { display: block; }
-    .mb-1 { margin-bottom: 4px; }
-    .mb-2 { margin-bottom: 8px; }
-    .mb-3 { margin-bottom: 12px; }
-    .mb-4 { margin-bottom: 16px; }
-    .mt-1 { margin-top: 4px; }
-    .mt-2 { margin-top: 8px; }
-    .mt-3 { margin-top: 12px; }
-    .mt-4 { margin-top: 16px; }
-    .w-full { width: 100%; }
-    .flex-1 { flex: 1; }
+    .step-header {
+      padding: 14px 20px;
+      background: #fafafa;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
 
-    /* ========================================================= */
-    /* 1. AUTHENTICATION GATE SCREEN (LOCKED OVERLAY) */
-    /* ========================================================= */
+    .step-badge {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 700;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .step-badge.step-green { background: var(--green); }
+    .step-badge.step-amber { background: var(--amber); }
+    .step-badge.step-red { background: var(--red); }
+    .step-badge.step-purple { background: var(--accent); }
+
+    .step-title-wrap {
+      flex: 1;
+    }
+
+    .step-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .step-sub {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .step-body {
+      padding: 18px 20px;
+    }
+
+    /* Forms, Grids & Elements */
+    .form-grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    .form-grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .form-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 13.5px;
+      font-family: inherit;
+      color: var(--text-primary);
+      background: var(--bg-white);
+      transition: border-color 0.15s;
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 9px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.15s;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #ffffff;
+      padding: 9px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 13.5px;
+      font-weight: 600;
+      border: 1px solid transparent;
+      cursor: pointer;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-dark);
+    }
+
+    .btn-success {
+      background: var(--green);
+      color: #ffffff;
+    }
+
+    .btn-success:hover {
+      background: #15803d;
+    }
+
+    .btn-outline {
+      background: var(--bg-white);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      padding: 8px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-outline:hover {
+      background: var(--bg-subtle);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      padding: 8px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .btn-call {
+      background: var(--green);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      padding: 9px 18px;
+      border-radius: var(--radius-sm);
+      border: none;
+      cursor: pointer;
+    }
+
+    .btn-call.calling {
+      background: var(--red);
+    }
+
+    /* Leads Queue List in Step 2 */
+    .queue-list-box {
+      max-height: 220px;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg-subtle);
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .lead-queue-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg-white);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .lead-queue-item:hover {
+      border-color: var(--accent);
+      background: var(--accent-light);
+    }
+
+    .lead-queue-item.active {
+      border-color: var(--accent);
+      background: var(--accent-light);
+      box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+    }
+
+    .lead-item-biz {
+      font-weight: 700;
+      font-size: 13.5px;
+      color: var(--text-primary);
+    }
+
+    .lead-item-sub {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+      display: flex;
+      gap: 8px;
+    }
+
+    .lead-status-tag {
+      font-size: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      text-transform: uppercase;
+    }
+
+    .lead-status-tag.status-dnc {
+      background: var(--red-light);
+      border-color: rgba(220, 38, 38, 0.3);
+      color: var(--red);
+    }
+
+    /* Active Lead Call Banner */
+    .active-lead-box {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .active-lead-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .active-lead-title {
+      font-size: 17px;
+      font-weight: 800;
+      color: #1e3a8a;
+    }
+
+    .active-lead-details {
+      font-size: 12.5px;
+      color: #3b82f6;
+      display: flex;
+      gap: 12px;
+      font-weight: 500;
+    }
+
+    .active-lead-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .timer-display {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-primary);
+      padding: 6px 12px;
+      background: var(--bg-white);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+    }
+
+    /* Script & Objection Boxes */
+    .script-box {
+      background: #f8fafc;
+      border-left: 4px solid var(--accent);
+      padding: 12px 16px;
+      border-radius: 0 6px 6px 0;
+      margin-bottom: 14px;
+      font-size: 13.5px;
+      line-height: 1.5;
+    }
+
+    .script-box b {
+      color: var(--accent);
+    }
+
+    .objection-pills {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+
+    .obj-pill {
+      padding: 5px 10px;
+      border: 1px solid var(--border);
+      background: var(--bg-white);
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+
+    .obj-pill:hover, .obj-pill.active {
+      background: var(--accent-light);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .obj-response {
+      background: var(--bg-white);
+      border: 1px dashed var(--border);
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: var(--text-primary);
+      margin-bottom: 12px;
+    }
+
+    /* Gates Bar */
+    .gate-summary-bar {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+
+    .gate-item {
+      flex: 1;
+      padding: 6px 8px;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+
+    .gate-item.passed {
+      background: var(--green-light);
+      border-color: rgba(22, 163, 74, 0.3);
+      color: var(--green);
+    }
+
+    /* Checkbox / Radio Tiles */
+    .checkbox-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .checkbox-tile {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border: 1px solid var(--border);
+      background: var(--bg-white);
+      border-radius: 6px;
+      font-size: 12.5px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .checkbox-tile input {
+      accent-color: var(--accent);
+    }
+
+    /* Tables */
+    .data-table-container {
+      background: var(--bg-white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow-x: auto;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 13px;
+    }
+
+    .data-table th {
+      background: #f8fafc;
+      padding: 10px 14px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border);
+      font-size: 11.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .data-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-primary);
+    }
+
+    .data-table tr:hover td {
+      background: var(--bg-subtle);
+    }
+
+    /* Auth Gate Overlay (Light Theme) */
     .auth-gate-overlay {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
       width: 100vw; height: 100vh;
-      background: radial-gradient(circle at 50% 30%, #1a0f30 0%, #050507 80%);
+      background: #f1f5f9;
       z-index: 99999;
       display: flex;
       align-items: center;
@@ -84,13 +666,13 @@
     }
 
     .auth-gate-card {
-      background: #0d0d14;
-      border: 1px solid rgba(163, 53, 249, 0.3);
+      background: #ffffff;
+      border: 1px solid var(--border);
       border-radius: 16px;
       padding: 36px 32px;
       width: 100%;
-      max-width: 420px;
-      box-shadow: 0 25px 70px rgba(0, 0, 0, 0.9), 0 0 40px rgba(163, 53, 249, 0.15);
+      max-width: 400px;
+      box-shadow: var(--shadow-md);
       display: flex;
       flex-direction: column;
     }
@@ -98,1123 +680,801 @@
     .auth-gate-brand {
       display: flex;
       align-items: center;
-      gap: 8px;
-      margin-bottom: 4px;
+      gap: 10px;
+      margin-bottom: 20px;
+      justify-content: center;
     }
 
-    .brand-bolt { color: var(--accent); }
-    .brand-text { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 16px; }
-    .brand-highlight { color: var(--accent-light); }
-    .brand-badge {
-      font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700;
-      padding: 2px 6px; border-radius: 4px; background: var(--accent-glow);
-      color: var(--accent-light); border: 1px solid rgba(163, 53, 249, 0.3);
-    }
-
-    .form-group { margin-bottom: 12px; }
-    .form-group label {
-      display: block; font-size: 11px; font-weight: 600; color: var(--text-muted); margin-bottom: 5px;
-    }
-
-    .form-group input, .form-group select, .form-group textarea, .gate-subfields input, .gate-subfields select {
-      width: 100%;
-      background: #060609;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      color: #f8fafc;
-      padding: 9px 12px;
-      border-radius: 6px;
-      font-size: 12.5px;
-      outline: none;
-      transition: all 0.2s ease;
-    }
-
-    .form-group input:focus, .form-group select:focus, .form-group textarea:focus, .gate-subfields input:focus, .gate-subfields select:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 10px rgba(163, 53, 249, 0.25);
-    }
-
-    /* Buttons */
-    .btn-primary {
-      background: var(--accent);
-      color: #fff;
-      border: none;
-      font-weight: 700;
-      font-size: 12.5px;
-      padding: 10px 16px;
-      border-radius: 8px;
-      cursor: pointer;
-      display: inline-flex;
+    /* Modals */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(15, 23, 42, 0.4);
+      z-index: 9999;
       align-items: center;
       justify-content: center;
-      gap: 6px;
-      transition: all 0.2s ease;
-    }
-    .btn-primary:hover:not(:disabled) {
-      background: var(--accent-light);
-      box-shadow: 0 0 16px var(--accent-glow);
-    }
-    .btn-primary.btn-disabled, .btn-primary:disabled {
-      opacity: 0.35; cursor: not-allowed;
+      padding: 20px;
     }
 
-    .btn-secondary {
-      background: var(--bg-elevated);
-      border: 1px solid var(--border-subtle);
-      color: var(--text-primary);
-      font-weight: 600;
-      font-size: 12px;
-      padding: 8px 14px;
-      border-radius: 8px;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
+    .modal-backdrop.active {
+      display: flex;
     }
 
-    .btn-ghost {
-      background: transparent;
-      border: 1px solid var(--border-subtle);
-      color: var(--text-muted);
-      padding: 8px 14px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 12px;
-    }
-    .btn-ghost:hover {
-      color: var(--text-primary);
-      border-color: rgba(255, 255, 255, 0.25);
+    .modal-box, .modal-card {
+      background: #ffffff;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      padding: 24px;
+      width: 100%;
+      max-width: 520px;
+      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
     }
 
-    .btn-sm { font-size: 11px; padding: 4px 8px; border-radius: 4px; }
+    .modal-lg {
+      max-width: 680px;
+    }
 
-    /* ========================================================= */
-    /* 2. TOP NAVIGATION */
-    /* ========================================================= */
-    .top-nav {
-      height: 56px;
-      background-color: var(--bg-card);
-      border-bottom: 1px solid var(--border-subtle);
+    .modal-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 16px;
-      flex-shrink: 0;
-      z-index: 50;
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
     }
 
-    .nav-left { display: flex; align-items: center; gap: 24px; }
-    .view-toggles {
-      display: flex;
-      background: var(--bg-obsidian);
-      border: 1px solid var(--border-subtle);
-      padding: 3px;
-      border-radius: 8px;
-      gap: 4px;
+    .modal-title {
+      font-size: 16px;
+      font-weight: 700;
     }
 
-    .toggle-tab {
+    .modal-close {
       background: transparent;
       border: none;
-      color: var(--text-muted);
-      font-size: 12px;
+      font-size: 18px;
+      cursor: pointer;
+      color: var(--text-secondary);
+    }
+
+    /* Toast */
+    .toast-box, .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #0f172a;
+      color: #ffffff;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 13px;
       font-weight: 600;
-      padding: 6px 12px;
-      border-radius: 6px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      transition: all 0.15s ease;
+      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.2);
+      z-index: 100000;
+      display: none;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.25s ease;
     }
-    .toggle-tab:hover { color: var(--text-primary); }
-    .toggle-tab.active {
-      background: var(--bg-elevated);
+
+    .toast-box.show, .toast.show {
+      display: block;
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .dossier-modal-inner {
       color: var(--text-primary);
-      border: 1px solid var(--border-subtle);
-      box-shadow: 0 2px 6px rgba(0,0,0,0.5);
     }
 
-    .badge-count {
-      background: var(--accent);
-      color: #fff;
-      font-size: 10px;
-      padding: 1px 5px;
-      border-radius: 10px;
-      font-family: 'JetBrains Mono', monospace;
-    }
-
-    .nav-right { display: flex; align-items: center; gap: 12px; }
-    .cloud-status {
-      display: flex; align-items: center; gap: 6px;
-      font-size: 11px; font-family: 'JetBrains Mono', monospace;
-      color: var(--text-muted); padding: 4px 8px;
-      background: var(--bg-obsidian); border: 1px solid var(--border-subtle);
-      border-radius: 6px;
-    }
-    .status-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
-    .status-dot.connected { background: var(--emerald); box-shadow: 0 0 6px var(--emerald); }
-
-    /* ========================================================= */
-    /* 3. MAIN COCKPIT & CALLER STUDIO GRID */
-    /* ========================================================= */
-    .cockpit-main { flex: 1; overflow: hidden; position: relative; }
-    .view-panel { display: none; height: 100%; padding: 14px 16px; overflow-y: auto; }
-    .view-panel.active { display: block; }
-
-    .caller-grid {
-      display: grid;
-      grid-template-columns: 290px 1fr 380px;
-      gap: 14px;
-      height: 100%;
-    }
-
-    .panel-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-lg);
-      padding: 14px;
-      display: flex;
-      flex-direction: column;
-      height: 100%;
-      overflow: hidden;
-    }
-
-    .panel-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 10px;
-      flex-shrink: 0;
-    }
-    .panel-header h3 { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; }
-
-    .stats-mini-bar {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 6px;
-      background: var(--bg-obsidian);
-      border: 1px solid var(--border-subtle);
-      border-radius: 8px;
-      padding: 6px;
-      margin-bottom: 10px;
-      flex-shrink: 0;
-    }
-
-    .mini-stat { display: flex; flex-direction: column; align-items: center; }
-    .stat-num { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 15px; }
-    .stat-label { font-size: 9px; color: var(--text-muted); text-transform: uppercase; }
-
-    .queue-search-wrap input {
-      width: 100%; background: var(--bg-obsidian); border: 1px solid var(--border-subtle);
-      color: var(--text-primary); padding: 7px 10px; border-radius: 6px;
-      font-size: 11.5px; outline: none; margin-bottom: 8px;
-    }
-    .queue-search-wrap input:focus { border-color: var(--accent); }
-
-    .queue-list {
-      flex: 1; overflow-y: auto; display: flex; flex-direction: column;
-      gap: 6px; padding-right: 2px;
-    }
-
-    .lead-queue-item {
-      background: var(--bg-obsidian);
-      border: 1px solid var(--border-subtle);
-      border-radius: 8px;
-      padding: 8px 10px;
-      cursor: pointer;
-      transition: all 0.15s ease;
-    }
-    .lead-queue-item:hover { border-color: rgba(255, 255, 255, 0.2); }
-    .lead-queue-item.active {
-      border-color: var(--accent);
-      background: rgba(163, 53, 249, 0.08);
-      box-shadow: 0 0 10px rgba(163, 53, 249, 0.15);
-    }
-
-    .lead-item-biz { font-weight: 700; font-size: 12.5px; color: var(--text-primary); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .lead-item-sub { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); }
-    .lead-status-tag { font-size: 9px; font-family: 'JetBrains Mono', monospace; padding: 1px 4px; border-radius: 3px; background: var(--bg-elevated); }
-
-    /* Center Battlecard */
-    .col-battlecard .panel-card { overflow-y: auto; }
-    .live-pulse-badge {
-      font-family: 'JetBrains Mono', monospace; font-size: 9.5px; font-weight: 700;
-      color: var(--emerald); background: rgba(16, 185, 129, 0.12);
-      border: 1px solid rgba(16, 185, 129, 0.3); padding: 2px 6px; border-radius: 4px;
-    }
-
-    .call-timer-box { display: flex; align-items: center; gap: 8px; }
-    #call-timer { font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700; color: var(--accent-light); }
-    .btn-timer {
-      background: var(--bg-obsidian); border: 1px solid var(--border-subtle);
-      color: var(--text-primary); padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer;
-    }
-    .btn-timer.calling { background: var(--rose); color: #fff; border-color: var(--rose); }
-
-    .active-lead-banner {
-      background: var(--bg-obsidian); border: 1px solid var(--border-subtle);
-      border-radius: 8px; padding: 12px 14px; display: flex;
-      align-items: center; justify-content: space-between; margin-bottom: 12px;
-    }
-    .active-lead-banner h2 { font-size: 15px; margin-bottom: 2px; }
-    .lead-meta-row { display: flex; gap: 12px; font-size: 11.5px; color: var(--text-muted); }
-    .lead-meta-row b { color: var(--text-primary); }
-
-    .btn-call-action {
-      background: var(--emerald); color: #000; font-weight: 700; font-size: 12px;
-      padding: 7px 14px; border-radius: 6px; text-decoration: none;
-      display: inline-flex; align-items: center; gap: 5px;
-    }
-    .btn-call-action:hover { box-shadow: 0 0 12px var(--emerald-glow); }
-
-    .script-flow-container { display: flex; flex-direction: column; gap: 12px; }
-    .script-card {
-      background: var(--bg-obsidian); border: 1px solid var(--border-subtle);
-      border-radius: 8px; padding: 12px 14px; display: flex; gap: 12px;
-    }
-
-    .step-num-badge {
-      width: 24px; height: 24px; border-radius: 50%;
-      background: var(--accent-glow); color: var(--accent-light); border: 1px solid var(--accent);
-      display: flex; align-items: center; justify-content: center;
-      font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 11px; flex-shrink: 0;
-    }
-
-    .step-body h4 { font-size: 12.5px; font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; }
-    .badge-danger {
-      font-size: 9.5px; font-family: 'JetBrains Mono', monospace;
-      background: rgba(244, 63, 94, 0.12); color: var(--rose);
-      border: 1px solid rgba(244, 63, 94, 0.3); padding: 1px 5px; border-radius: 3px;
-    }
-
-    .script-text { font-size: 12.5px; line-height: 1.55; color: #e2e8f0; }
-    .highlight-var { color: var(--accent-light); font-weight: 700; background: var(--accent-glow); padding: 1px 4px; border-radius: 3px; }
-    .script-prompt {
-      margin-top: 6px; padding: 6px 10px; background: var(--bg-elevated);
-      border-radius: 4px; font-size: 12px; border-left: 3px solid var(--accent);
-    }
-
-    /* Objections */
-    .objection-tabs-box { background: var(--bg-obsidian); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 12px 14px; }
-    .objection-tabs-header { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px; }
-    .objection-pills { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
-    .obj-pill {
-      background: var(--bg-elevated); border: 1px solid var(--border-subtle);
-      color: var(--text-muted); font-size: 11px; font-weight: 600; padding: 4px 8px;
-      border-radius: 4px; cursor: pointer;
-    }
-    .obj-pill:hover { color: var(--text-primary); }
-    .obj-pill.active { background: var(--accent-glow); color: var(--accent-light); border-color: var(--accent); }
-
-    .objection-content-box {
-      background: var(--bg-card); border: 1px solid var(--border-subtle);
-      border-radius: 4px; padding: 8px 12px; font-size: 12px; line-height: 1.55;
-      border-left: 3px solid var(--amber);
-    }
-
-    /* Right Column: Qualification Gate */
-    .col-qualification .panel-card { overflow-y: auto; }
-    .pill-locked {
-      font-family: 'JetBrains Mono', monospace; font-size: 10px; padding: 2px 6px;
-      border-radius: 4px; background: rgba(245, 158, 11, 0.12); color: var(--amber);
-      border: 1px solid rgba(245, 158, 11, 0.3);
-    }
-    .pill-unlocked { background: rgba(16, 185, 129, 0.12); color: var(--emerald); border: 1px solid rgba(16, 185, 129, 0.3); }
-
-    .gate-item {
-      background: var(--bg-obsidian); border: 1px solid var(--border-subtle);
-      border-radius: 8px; padding: 8px 10px; margin-bottom: 8px;
-    }
-    .gate-checkbox-label { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 12px; cursor: pointer; margin-bottom: 4px; }
-    .gate-checkbox-label input[type="checkbox"] { width: 14px; height: 14px; accent-color: var(--accent); cursor: pointer; }
-    .gate-subfields { display: flex; flex-direction: column; gap: 5px; padding-left: 20px; }
-
-    .appointment-scheduling-box {
-      background: var(--bg-obsidian); border: 1px solid var(--border-subtle);
-      border-radius: 8px; padding: 10px; margin-top: 8px;
-    }
-    .form-row { display: flex; gap: 6px; }
-
-    .dispo-btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
-    .btn-dispo {
-      background: var(--bg-obsidian); border: 1px solid var(--border-subtle);
-      color: var(--text-muted); font-size: 10.5px; padding: 5px 6px; border-radius: 4px; cursor: pointer;
-    }
-    .btn-dispo:hover { background: var(--bg-elevated); color: var(--text-primary); }
-
-    /* ========================================================= */
-    /* 4. CLOSER QUEUE & DOSSIERS */
-    /* ========================================================= */
-    .closer-layout, .leads-layout { max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
-    .closer-header-bar, .leads-header-bar { display: flex; align-items: center; justify-content: space-between; padding-bottom: 10px; border-bottom: 1px solid var(--border-subtle); }
-    .closer-filters { display: flex; gap: 6px; }
-    .filter-pill {
-      background: var(--bg-card); border: 1px solid var(--border-subtle);
-      color: var(--text-muted); padding: 4px 10px; border-radius: 6px;
-      font-size: 11.5px; font-weight: 600; cursor: pointer;
-    }
-    .filter-pill.active { background: var(--accent-glow); color: var(--accent-light); border-color: var(--accent); }
-
-    .closer-cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 14px; }
-    .dossier-card {
-      background: var(--bg-card); border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-lg); padding: 14px; display: flex;
-      flex-direction: column; gap: 10px;
-    }
-    .dossier-top { display: flex; justify-content: space-between; align-items: flex-start; }
-    .dossier-time-badge {
-      font-family: 'JetBrains Mono', monospace; font-size: 10.5px; font-weight: 700;
-      background: var(--accent-glow); color: var(--accent-light);
-      border: 1px solid rgba(163, 53, 249, 0.3); padding: 2px 6px; border-radius: 4px;
-    }
-
-    .dossier-pain-box {
-      background: var(--bg-obsidian); border-left: 3px solid var(--rose);
-      padding: 6px 10px; border-radius: 0 4px 4px 0; font-size: 11.5px;
-    }
-
-    .dossier-metrics-list { display: flex; flex-direction: column; gap: 3px; font-size: 11.5px; color: var(--text-muted); }
-    .dossier-metrics-list span b { color: var(--text-primary); }
-    .dossier-footer { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-subtle); padding-top: 8px; margin-top: auto; }
-
-    /* Leads Table */
-    .leads-table-container { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); overflow: hidden; }
-    .data-table { width: 100%; border-collapse: collapse; text-align: left; }
-    .data-table th { background: var(--bg-obsidian); padding: 8px 12px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border-subtle); }
-    .data-table td { padding: 10px 12px; border-bottom: 1px solid var(--border-subtle); font-size: 12px; }
-    .data-table tr:hover td { background: var(--bg-elevated); }
-
-    /* Modals & Toast */
-    .modal-backdrop {
-      display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.8);
-      backdrop-filter: blur(4px); z-index: 100; align-items: center; justify-content: center;
-    }
-    .modal-backdrop.active { display: flex; }
-    .modal-card { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); width: 100%; max-width: 440px; padding: 20px; }
-    .modal-card.modal-lg { max-width: 640px; }
-    .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-    .modal-close { background: transparent; border: none; color: var(--text-muted); font-size: 18px; cursor: pointer; }
-    .modal-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
-
-    .toast {
-      position: fixed; bottom: 20px; right: 20px; background: var(--bg-elevated);
-      border: 1px solid var(--border-subtle); color: var(--text-primary);
-      padding: 10px 16px; border-radius: 8px; font-size: 12px;
-      opacity: 0; transform: translateY(10px); transition: all 0.25s ease; pointer-events: none; z-index: 200;
-    }
-    .toast.show { opacity: 1; transform: translateY(0); }
-    .empty-state { text-align: center; padding: 24px; color: var(--text-muted); font-size: 12px; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
   <!-- ======================================================== -->
-  <!-- MANDATORY AUTHENTICATION GATE (FORCED LOGIN / SIGN UP) -->
+  <!-- 1. AUTHENTICATION GATE SCREEN (LOCKED OVERLAY) -->
   <!-- ======================================================== -->
   <div id="auth-gate-screen" class="auth-gate-overlay">
     <div class="auth-gate-card">
       <div class="auth-gate-brand">
-        <svg class="brand-bolt" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-        </svg>
-        <span class="brand-text">Web<span class="brand-highlight">Smitherz</span></span>
-        <span class="brand-badge">COCKPIT</span>
+        <div class="nav-brand-badge">W</div>
+        <div class="nav-brand-title">WebSmitherz Cockpit</div>
       </div>
-      
-      <h2 class="font-syne text-xl mt-2" id="auth-gate-title">Caller & Closer Portal Sign In</h2>
-      <p class="text-xs text-muted mb-4" id="auth-gate-sub">
-        Sign in with your verified account to access the dialer and live pipeline.
-      </p>
+      <h2 id="auth-gate-title" style="font-size:18px; font-weight:700; margin-bottom:4px; text-align:center;">Sign In</h2>
+      <p id="auth-gate-sub" style="font-size:12px; color:var(--text-secondary); margin-bottom:20px; text-align:center;">Enter your credentials to access caller command.</p>
 
-      <form id="auth-gate-form" onsubmit="handleAuthSubmit(event)">
-        <div class="form-group mb-3" id="auth-name-group" style="display: none;">
-          <label>Your Full Name *</label>
-          <input type="text" id="auth-name-input" placeholder="e.g. Alex Morgan">
+      <form id="auth-gate-form" onsubmit="handleAuthSubmit(event)" style="display:flex; flex-direction:column; gap:12px;">
+        <div id="auth-name-group" class="form-group" style="display:none;">
+          <label class="form-label">Full Name</label>
+          <input type="text" id="auth-name-input" class="form-control" placeholder="Alex Morgan">
         </div>
 
-        <div class="form-group mb-3">
-          <label>Team Email Address *</label>
-          <input type="email" id="auth-email-input" placeholder="yourname@websmitherz.com" required>
-        </div>
-
-        <div class="form-group mb-3">
-          <label>Password *</label>
-          <input type="password" id="auth-password-input" placeholder="••••••••" required minlength="6">
-        </div>
-
-        <div class="form-group mb-4" id="auth-role-group" style="display: none;">
-          <label>Assigned Role *</label>
-          <select id="auth-role-input">
-            <option value="caller" selected>Cold Caller / SDR</option>
-            <option value="closer">Closer / Systems Consultant</option>
+        <div id="auth-role-group" class="form-group" style="display:none;">
+          <label class="form-label">Workspace Role</label>
+          <select id="auth-role-input" class="form-control">
+            <option value="caller">Cold Caller / SDR</option>
+            <option value="closer">Account Executive / Closer</option>
+            <option value="admin">Operations Admin</option>
           </select>
         </div>
 
-        <button type="submit" id="auth-gate-submit-btn" class="btn-primary w-full mb-3">
-          Sign In to Cockpit
-        </button>
-
-        <div style="border-top: 1px solid var(--border-subtle); padding-top: 14px; margin-top: 6px;">
-          <button type="button" class="btn-ghost w-full" id="auth-gate-toggle-btn" onclick="toggleAuthGateMode()">
-            Need an account? Register as New Caller
-          </button>
+        <div class="form-group">
+          <label class="form-label">Work Email</label>
+          <input type="email" id="auth-email-input" class="form-control" placeholder="agent@websmitherz.com" required>
         </div>
+
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" id="auth-password-input" class="form-control" placeholder="••••••••" required>
+        </div>
+
+        <button type="submit" id="auth-gate-submit-btn" class="btn btn-primary" style="margin-top:6px;">Sign In to Cockpit</button>
       </form>
+
+      <div style="margin-top:16px; text-align:center; font-size:12px; color:var(--text-secondary);">
+        <span id="auth-gate-toggle-text">Need an account?</span>
+        <button type="button" id="auth-gate-toggle-btn" onclick="toggleAuthGateMode()" style="background:none; border:none; color:var(--accent); font-weight:600; cursor:pointer; margin-left:4px;">Sign Up</button>
+      </div>
     </div>
   </div>
 
   <!-- ======================================================== -->
   <!-- PROTECTED APPLICATION COCKPIT (LOCKED UNTIL AUTHENTICATED) -->
   <!-- ======================================================== -->
-  <div id="app-workspace" style="display: none; height: 100vh; flex-direction: column;">
+  <div id="app-workspace" style="display:none; flex-direction:column; min-height:100vh;">
     
-    <!-- Top Navigation Bar -->
+    <!-- Top Nav Header -->
     <header class="top-nav">
-      <div class="nav-left">
-        <div class="brand-logo" style="display: flex; align-items: center; gap: 8px;">
-          <svg class="brand-bolt" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-          </svg>
-          <span class="brand-text">Web<span class="brand-highlight">Smitherz</span></span>
-          <span class="brand-badge">COCKPIT</span>
-        </div>
-        <div class="view-toggles">
-          <button id="view-caller-btn" class="toggle-tab active" onclick="switchView('caller')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
-            Caller Studio
-          </button>
-          <button id="view-closer-btn" class="toggle-tab" onclick="switchView('closer')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-            Closer Queue <span id="pending-appointments-count" class="badge-count">0</span>
-          </button>
-          <button id="view-tasks-btn" class="toggle-tab" onclick="switchView('tasks')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
-            Tasks & Callbacks <span id="pending-tasks-count" class="badge-count" style="background:var(--rose);">0</span>
-          </button>
-          <button id="view-leads-btn" class="toggle-tab" onclick="switchView('leads')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-            My Pipeline
-          </button>
-          <button id="view-kb-btn" class="toggle-tab" onclick="switchView('kb')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
-            Pricing KB
-          </button>
-        </div>
+      <div class="nav-brand">
+        <div class="nav-brand-badge">W</div>
+        <div class="nav-brand-title">WebSmitherz Cockpit</div>
       </div>
 
-      <div class="nav-right">
-        <div class="user-selector">
-          <span class="pill-locked pill-unlocked" id="active-user-badge" style="font-size:11px; padding:3px 8px; display:inline-flex; align-items:center; gap:4px;">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H4a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-            <b id="user-display-name">Agent</b> (<span id="user-display-role">caller</span>)
-          </span>
-        </div>
-        
-        <div class="cloud-status">
-          <span class="status-dot connected" id="status-dot"></span>
-          <span id="status-text">Production Cloud</span>
-        </div>
+      <nav class="nav-tabs">
+        <button id="view-caller-btn" class="toggle-tab active" onclick="switchView('caller')">Caller Studio</button>
+        <button id="view-closer-btn" class="toggle-tab" onclick="switchView('closer')">Closer Hub (<span id="pending-appointments-count">0</span>)</button>
+        <button id="view-tasks-btn" class="toggle-tab" onclick="switchView('tasks')">Tasks (<span id="pending-tasks-count">0</span>)</button>
+        <button id="view-leads-btn" class="toggle-tab" onclick="switchView('leads')">All Leads</button>
+        <button id="view-kb-btn" class="toggle-tab" onclick="switchView('kb')">Knowledge Base</button>
+      </nav>
 
-        <button class="btn-sm btn-ghost" onclick="handleSignOut()" title="Sign out of account">
-          Sign Out
-        </button>
+      <div class="nav-user">
+        <div class="status-indicator">
+          <div id="status-dot" class="status-dot"></div>
+          <span id="status-text">Connecting...</span>
+        </div>
+        <div class="user-profile">
+          <div class="user-avatar" id="user-avatar-initials">AM</div>
+          <div class="user-meta">
+            <span class="user-name" id="user-display-name">Alex Morgan</span>
+            <span class="user-role" id="user-display-role">Caller</span>
+          </div>
+        </div>
+        <button class="btn-signout" onclick="handleSignOut()">Sign Out</button>
       </div>
     </header>
 
-    <!-- Main View Container -->
-    <main class="cockpit-main">
+    <!-- CALLER STUDIO VIEW (MAIN LINEAR 5-STEP WORKFLOW) -->
+    <main id="caller-view" class="view-panel active">
+      
+      <!-- Metrics Bar -->
+      <div class="metrics-bar">
+        <div class="metric-card">
+          <span class="metric-val" id="stat-dials">0</span>
+          <span class="metric-lbl">Total Dials Today</span>
+        </div>
+        <div class="metric-card">
+          <span class="metric-val" id="stat-qualified" style="color:var(--accent);">0</span>
+          <span class="metric-lbl">Fully Qualified (G1-G5)</span>
+        </div>
+        <div class="metric-card">
+          <span class="metric-val" id="stat-booked" style="color:var(--green);">0</span>
+          <span class="metric-lbl">Booked Appointments</span>
+        </div>
+      </div>
 
-      <!-- VIEW 1: COLD CALLER STUDIO & QUALIFICATION GATE -->
-      <section id="caller-view" class="view-panel active">
-        <div class="caller-grid">
+      <!-- STEP 1: LOG A NEW LEAD (INLINE ENTRY) -->
+      <div class="step-card">
+        <div class="step-header">
+          <div class="step-badge step-purple">1</div>
+          <div class="step-title-wrap">
+            <div class="step-title">Log a New Lead You Found</div>
+            <div class="step-sub">Enter the prospect business information you found online or on Google Maps.</div>
+          </div>
+        </div>
+        <div class="step-body">
+          <form onsubmit="handleCreateLeadInline(event)">
+            <div class="form-grid-3" style="margin-bottom:12px;">
+              <div class="form-group">
+                <label class="form-label">Business Name *</label>
+                <input type="text" id="inline-lead-biz" class="form-control" placeholder="e.g. Apex Roofing Pros" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Contact / Owner Name</label>
+                <input type="text" id="inline-lead-contact" class="form-control" placeholder="e.g. John Miller">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Phone Number *</label>
+                <input type="tel" id="inline-lead-phone" class="form-control" placeholder="e.g. (512) 555-0199" required>
+              </div>
+            </div>
+            <div class="form-grid-3" style="margin-bottom:14px;">
+              <div class="form-group">
+                <label class="form-label">Website URL</label>
+                <input type="text" id="inline-lead-web" class="form-control" placeholder="e.g. apexroofingtx.com">
+              </div>
+              <div class="form-group">
+                <label class="form-label">City</label>
+                <input type="text" id="inline-lead-city" class="form-control" placeholder="e.g. Austin">
+              </div>
+              <div class="form-group">
+                <label class="form-label">State</label>
+                <input type="text" id="inline-lead-state" class="form-control" placeholder="e.g. TX" maxlength="2">
+              </div>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div style="font-size:12px; color:var(--text-secondary);">Leads you log will automatically save to your queue and cloud database.</div>
+              <button type="submit" class="btn btn-primary">+ Save Lead to Queue</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- STEP 2: SELECT LEAD TO CALL -->
+      <div class="step-card">
+        <div class="step-header">
+          <div class="step-badge step-green">2</div>
+          <div class="step-title-wrap">
+            <div class="step-title">Select Lead from Your Queue</div>
+            <div class="step-sub">Choose a lead to dial. The active lead will populate into the dialing studio below.</div>
+          </div>
+          <div style="width:240px;">
+            <input type="text" id="queue-search-input" class="form-control" placeholder="Search by name or phone..." oninput="filterQueue(this.value)">
+          </div>
+        </div>
+        <div class="step-body">
+          <div class="queue-list-box" id="queue-list-container">
+            <div style="text-align:center; padding:20px; color:var(--text-secondary); font-size:13px;">No leads logged yet. Log your first lead above to get started.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 3: DIAL & OPENING SCRIPT -->
+      <div class="step-card">
+        <div class="step-header">
+          <div class="step-badge step-amber">3</div>
+          <div class="step-title-wrap">
+            <div class="step-title">Dial Lead & Deliver Hook</div>
+            <div class="step-sub">Call the prospect, start the timer, and read the verified senior engineering script.</div>
+          </div>
+        </div>
+        <div class="step-body">
           
-          <!-- Left: Quick Lead Selector & Call Stats -->
-          <div class="col-lead-queue">
-            <div class="panel-card">
-              <div class="panel-header">
-                <h3>My Leads</h3>
+          <!-- Active Lead Banner -->
+          <div class="active-lead-box" id="active-lead-banner">
+            <div class="active-lead-info">
+              <div class="active-lead-title" id="active-biz-name">No Lead Selected</div>
+              <div class="active-lead-details">
+                <span>Contact: <b id="active-biz-contact">—</b></span>
+                <span>Phone: <b id="active-biz-phone">—</b></span>
+                <span>Location: <b id="active-biz-city">—</b></span>
               </div>
-
-              <!-- Primary CTA: Self-source a new lead -->
-              <button class="btn-primary w-full mb-2" onclick="openAddLeadModal()" style="font-size:12px;">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                Log a New Lead I Found
-              </button>
-
-              <!-- Stats Ribbon -->
-              <div class="stats-mini-bar">
-                <div class="mini-stat">
-                  <span class="stat-num" id="stat-dials">0</span>
-                  <span class="stat-label">Calls Today</span>
-                </div>
-                <div class="mini-stat">
-                  <span class="stat-num" id="stat-qualified">0</span>
-                  <span class="stat-label">Qualified</span>
-                </div>
-                <div class="mini-stat">
-                  <span class="stat-num text-accent" id="stat-booked">0</span>
-                  <span class="stat-label">Booked</span>
-                </div>
-              </div>
-
-              <!-- Search / Filter -->
-              <div class="queue-search-wrap">
-                <input type="text" id="queue-search-input" placeholder="Search business or phone..." oninput="filterQueue(this.value)">
-              </div>
-
-              <!-- Scrollable Lead Queue List -->
-              <div class="queue-list" id="queue-list-container">
-                <div class="empty-state">Find a business on Google or Google Maps, then click "Log a New Lead I Found" above to start.</div>
-              </div>
+            </div>
+            <div class="active-lead-actions">
+              <div class="timer-display" id="call-timer">00:00</div>
+              <a id="active-biz-tel-link" href="#" class="btn btn-outline" style="text-decoration:none;">Click to Call</a>
+              <button id="call-timer-btn" class="btn btn-call" onclick="toggleCallTimer()">Start Call</button>
             </div>
           </div>
 
-          <!-- Center: Interactive Call Battlecard & Objection Handler -->
-          <div class="col-battlecard">
-            <div class="panel-card">
-              <div class="panel-header">
-                <div style="display:flex; align-items:center; gap:8px;">
-                  <span class="live-pulse-badge">LIVE CALL SCRIPT</span>
-                  <span class="text-xs text-muted">WebSmitherz Systems Engineering Standard</span>
-                </div>
-                <div class="call-timer-box">
-                  <span id="call-timer">00:00</span>
-                  <button id="call-timer-btn" class="btn-timer" onclick="toggleCallTimer()">Start Call</button>
-                </div>
-              </div>
+          <!-- Opening Script Box -->
+          <div class="script-box">
+            <b>Senior Systems Engineering Hook:</b><br>
+            "Hi <span id="var-contact-name" style="font-weight:700; color:var(--accent);">[Contact]</span>, this is <span id="var-caller-name" style="font-weight:700; color:var(--accent);">Alex</span> with WebSmitherz Systems Engineering. I was auditing contractor sites in your area and noticed your mobile page speed is dropping calls on 5G carrier networks. We put together a 1-page forensic latency audit for your business. Do you have 2 minutes to hear the breakdown, or are you in the field right now?"
+          </div>
 
-              <!-- Active Lead Info Header -->
-              <div class="active-lead-banner" id="active-lead-banner">
-                <div>
-                  <h2 id="active-biz-name" class="font-syne">Select a Lead to Call</h2>
-                  <div class="lead-meta-row" id="active-lead-meta">
-                    <span>Phone: <b id="active-biz-phone">—</b></span>
-                    <span>Contact: <b id="active-biz-contact">—</b></span>
-                    <span>Location: <b id="active-biz-city">—</b></span>
-                  </div>
-                </div>
-                <div class="banner-actions">
-                  <a id="active-biz-tel-link" href="#" class="btn-call-action">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
-                    Dial Now
-                  </a>
-                </div>
-              </div>
-
-              <!-- Script Steps & Stages -->
-              <div class="script-flow-container">
-                
-                <!-- Step 1: The Permitted Opener -->
-                <div class="script-card step-card">
-                  <div class="step-num-badge">1</div>
-                  <div class="step-body">
-                    <h4>The Forensic Opener <span class="badge-danger">Banned: Never say "I have customers for you"</span></h4>
-                    <p class="script-text">
-                      "Hi <span class="highlight-var" id="var-contact-name">[Owner Name]</span>, this is <span class="highlight-var" id="var-caller-name">[Caller Name]</span> with WebSmitherz Systems. I’m looking at your website on my phone right now and noticed two technical friction points on mobile phones that are costing you direct estimate calls. Do you have 60 seconds?"
-                    </p>
-                  </div>
-                </div>
-
-                <!-- Step 2: The Specific Diagnostic Finding -->
-                <div class="script-card step-card">
-                  <div class="step-num-badge">2</div>
-                  <div class="step-body">
-                    <h4>The Specific Friction Diagnosis</h4>
-                    <p class="script-text">
-                      "When homeowners look for a contractor on their phone, your phone number isn't a one-tap button and the estimate form takes over 4 seconds to load. Homeowners just back out and call the next contractor on Google."
-                    </p>
-                    <p class="script-prompt">
-                      Ask: <b>"Right now, are you guys relying mostly on word-of-mouth, or are you actively trying to pick up 3 to 5 more jobs a month from Google?"</b>
-                    </p>
-                  </div>
-                </div>
-
-                <!-- Step 3: Interactive Objection Handlers -->
-                <div class="objection-tabs-box">
-                  <div class="objection-tabs-header">
-                    <span>Common Contractor Pushbacks (Click to View Response):</span>
-                  </div>
-                  <div class="objection-pills">
-                    <button class="obj-pill active" onclick="showObjection('busy')">"I'm busy / On a job site"</button>
-                    <button class="obj-pill" onclick="showObjection('send_email')">"Just send me an email"</button>
-                    <button class="obj-pill" onclick="showObjection('have_a_guy')">"We already have a web guy"</button>
-                    <button class="obj-pill" onclick="showObjection('cost')">"How much does this cost?"</button>
-                    <button class="obj-pill" onclick="showObjection('not_interested')">"Not interested"</button>
-                  </div>
-
-                  <div class="objection-content-box" id="objection-response-text">
-                    <!-- Rendered dynamically -->
-                  </div>
-                </div>
-
-                <!-- Step 4: The Clean Handoff Agreement -->
-                <div class="script-card step-card">
-                  <div class="step-num-badge">3</div>
-                  <div class="step-body">
-                    <h4>The Clear Authority Handoff</h4>
-                    <p class="script-text">
-                      "Our senior systems engineer will pull up your live mobile teardown and walk you through the exact bottleneck in 10 minutes. What's the best direct email where we can send the calendar invite and the 1-page PDF audit?"
-                    </p>
-                  </div>
-                </div>
-
-              </div>
+          <!-- Objection Battlecards Accordion -->
+          <div style="margin-top:12px;">
+            <div style="font-size:12px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; margin-bottom:6px;">Objection Battlecards (Click to load counter):</div>
+            <div class="objection-pills">
+              <button type="button" class="obj-pill active" onclick="showObjection('busy')">Busy / On Job Site</button>
+              <button type="button" class="obj-pill" onclick="showObjection('send_email')">Just Send Email</button>
+              <button type="button" class="obj-pill" onclick="showObjection('have_a_guy')">Already Have a Web Guy</button>
+              <button type="button" class="obj-pill" onclick="showObjection('cost')">How Much Does It Cost?</button>
+              <button type="button" class="obj-pill" onclick="showObjection('not_interested')">Not Interested</button>
+            </div>
+            <div class="obj-response" id="objection-response-text">
+              Select an objection above to view the battle-tested script counter.
             </div>
           </div>
 
-          <!-- Right: Complete Q1-Q9 Qualification Form & G1-G5 Quality Gate -->
-          <div class="col-qualification">
-            <div class="panel-card">
-              <div class="panel-header">
-                <h3>Structured Qualification (Q1–Q9)</h3>
-                <span class="pill-locked" id="gate-lock-status">G1–G5 Locked</span>
+        </div>
+      </div>
+
+      <!-- STEP 4: STRUCTURED QUALIFICATION (Q1-Q9) & APPOINTMENT BOOKING -->
+      <div class="step-card">
+        <div class="step-header">
+          <div class="step-badge step-purple">4</div>
+          <div class="step-title-wrap">
+            <div class="step-title">Structured Qualification (Q1-Q9) & Book Closer Briefing</div>
+            <div class="step-sub">Ask the 9 diagnostic questions. All 5 gates (G1-G5) must pass green to unlock booking.</div>
+          </div>
+        </div>
+        <div class="step-body">
+          
+          <!-- Gates Bar -->
+          <div class="gate-summary-bar">
+            <div id="gate-g1" class="gate-item">G1: Decision Maker</div>
+            <div id="gate-g2" class="gate-item">G2: Active Marketing</div>
+            <div id="gate-g3" class="gate-item">G3: Core Pain Point</div>
+            <div id="gate-g4" class="gate-item">G4: High Interest</div>
+            <div id="gate-g5" class="gate-item">G5: Timeline/Budget</div>
+          </div>
+
+          <!-- Qualification Form -->
+          <form id="qualification-form" onsubmit="handleBookAppointment(event)">
+            
+            <div style="display:flex; flex-direction:column; gap:14px; margin-bottom:18px;">
+              
+              <!-- Q1: Decision Maker -->
+              <div class="form-group">
+                <label class="form-label">Q1. Are you the owner or primary decision-maker for the business? *</label>
+                <div class="checkbox-group">
+                  <label class="checkbox-tile"><input type="radio" name="q_decision_maker" value="yes" onchange="evaluateGates()"> Yes, Owner / Partner</label>
+                  <label class="checkbox-tile"><input type="radio" name="q_decision_maker" value="manager" onchange="evaluateGates()"> General Manager / Operations</label>
+                  <label class="checkbox-tile"><input type="radio" name="q_decision_maker" value="no" onchange="evaluateGates()"> No, Gatekeeper / Staff</label>
+                </div>
               </div>
 
-              <p class="text-xs text-muted mb-2">
-                Mandatory before booking. Requires interest level &ge; Interested and all quality gates confirmed.
-              </p>
-
-              <form id="qualification-form" onsubmit="handleBookAppointment(event)">
-                
-                <!-- Q1: Decision Maker -->
-                <div class="gate-item">
-                  <label class="gate-checkbox-label"><b>Q1. Decision Maker? *</b></label>
-                  <div class="form-row">
-                    <label class="text-xs" style="display:flex; align-items:center; gap:4px;"><input type="radio" name="q_decision_maker" value="yes" checked onchange="validateGate()"> Yes (Owner/GM)</label>
-                    <label class="text-xs" style="display:flex; align-items:center; gap:4px;"><input type="radio" name="q_decision_maker" value="someone_else" onchange="validateGate()"> Someone Else</label>
-                    <label class="text-xs" style="display:flex; align-items:center; gap:4px;"><input type="radio" name="q_decision_maker" value="no" onchange="validateGate()"> No</label>
-                  </div>
+              <!-- Q2: Current Marketing Channels -->
+              <div class="form-group">
+                <label class="form-label">Q2. What marketing or lead generation channels are you currently running? (Select all that apply) *</label>
+                <div class="checkbox-group">
+                  <label class="checkbox-tile"><input type="checkbox" class="q-mktg" value="google_ads" onchange="evaluateGates()"> Google Ads / LSA</label>
+                  <label class="checkbox-tile"><input type="checkbox" class="q-mktg" value="seo_maps" onchange="evaluateGates()"> SEO / Google Maps</label>
+                  <label class="checkbox-tile"><input type="checkbox" class="q-mktg" value="facebook_ads" onchange="evaluateGates()"> Facebook / Social Ads</label>
+                  <label class="checkbox-tile"><input type="checkbox" class="q-mktg" value="word_of_mouth" onchange="evaluateGates()"> Word of Mouth Only</label>
+                  <label class="checkbox-tile"><input type="checkbox" class="q-mktg" value="none" onchange="evaluateGates()"> None Currently</label>
                 </div>
+              </div>
 
-                <!-- Q2 & Q3: Current Marketing & Website Status -->
-                <div class="gate-item">
-                  <label class="gate-checkbox-label"><b>Q2. Current Marketing Channels *</b></label>
-                  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:4px; font-size:11px; margin-bottom:6px;">
-                    <label><input type="checkbox" class="q-mktg" value="word_of_mouth" checked onchange="validateGate()"> Word of mouth</label>
-                    <label><input type="checkbox" class="q-mktg" value="google_maps" onchange="validateGate()"> Google Maps</label>
-                    <label><input type="checkbox" class="q-mktg" value="facebook" onchange="validateGate()"> Facebook</label>
-                    <label><input type="checkbox" class="q-mktg" value="paid_ads" onchange="validateGate()"> Paid Ads / Lead Gen</label>
-                  </div>
-                  <label class="gate-checkbox-label mt-1"><b>Q3. Website Status *</b></label>
-                  <select id="q_has_website" onchange="validateGate()" style="margin-top:2px;">
-                    <option value="needs_improvement">Has Website (Needs Speed / Modern Redesign)</option>
-                    <option value="no_website">No Website (Zero Online Footprint)</option>
-                    <option value="has_website">Has Website (Functional)</option>
+              <!-- Q3: Website Status -->
+              <div class="form-group">
+                <label class="form-label">Q3. Do you currently have a live website? *</label>
+                <div class="checkbox-group">
+                  <label class="checkbox-tile"><input type="radio" name="q_has_website" value="yes_active" onchange="evaluateGates()"> Yes, Active Website</label>
+                  <label class="checkbox-tile"><input type="radio" name="q_has_website" value="yes_outdated" onchange="evaluateGates()"> Yes, but Outdated / Slow</label>
+                  <label class="checkbox-tile"><input type="radio" name="q_has_website" value="no" onchange="evaluateGates()"> No Website</label>
+                </div>
+              </div>
+
+              <!-- Q4: Primary Business Goal -->
+              <div class="form-group">
+                <label class="form-label">Q4. What is your primary growth goal over the next 3 to 6 months? *</label>
+                <div class="checkbox-group">
+                  <label class="checkbox-tile"><input type="checkbox" class="q-goal" value="more_inbound_calls" onchange="evaluateGates()"> More Inbound Phone Calls</label>
+                  <label class="checkbox-tile"><input type="checkbox" class="q-goal" value="higher_job_value" onchange="evaluateGates()"> Higher Ticket / Value Jobs</label>
+                  <label class="checkbox-tile"><input type="checkbox" class="q-goal" value="outrank_competitors" onchange="evaluateGates()"> Outrank Local Competitors</label>
+                  <label class="checkbox-tile"><input type="checkbox" class="q-goal" value="automate_dispatch" onchange="evaluateGates()"> Automate Follow-up / Dispatch</label>
+                </div>
+              </div>
+
+              <!-- Q5: Core Pain Point -->
+              <div class="form-group">
+                <label class="form-label">Q5. What is the single biggest bottleneck in your current customer acquisition? *</label>
+                <select id="q_pain_point" class="form-control" onchange="evaluateGates()">
+                  <option value="">-- Select Biggest Bottleneck --</option>
+                  <option value="slow_mobile_speed">Slow mobile website / Phone number not 1-tap clickable</option>
+                  <option value="low_map_rankings">Not showing up in Google Maps top 3 pack</option>
+                  <option value="unqualified_leads">Getting too many unqualified tire-kickers</option>
+                  <option value="bad_past_agency">Burned by past agencies with zero transparent reporting</option>
+                  <option value="none">No major pain points / satisfied with current setup</option>
+                </select>
+              </div>
+
+              <!-- Q6: Interest Level -->
+              <div class="form-group">
+                <label class="form-label">Q6. How interested are you in seeing the 1-Page Forensic Mobile Latency Audit? *</label>
+                <div class="checkbox-group">
+                  <label class="checkbox-tile"><input type="radio" name="q_interest_level" value="high" onchange="evaluateGates()"> High (Ready for briefing tomorrow)</label>
+                  <label class="checkbox-tile"><input type="radio" name="q_interest_level" value="moderate" onchange="evaluateGates()"> Moderate (Send info first, then talk)</label>
+                  <label class="checkbox-tile"><input type="radio" name="q_interest_level" value="low" onchange="evaluateGates()"> Low (Mild curiosity)</label>
+                </div>
+              </div>
+
+              <!-- Q7 & Q8: Timeline & Budget Grid -->
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label class="form-label">Q7. If the audit confirms the drop bug, how soon would you want it fixed? *</label>
+                  <select id="q_timeline" class="form-control" onchange="evaluateGates()">
+                    <option value="">-- Select Timeline --</option>
+                    <option value="immediately">Immediately (Next 1-2 weeks)</option>
+                    <option value="this_month">This Month</option>
+                    <option value="next_quarter">Next Quarter</option>
+                    <option value="just_looking">Just researching / No timeline</option>
                   </select>
                 </div>
-
-                <!-- Q4 & Q5: Main Goal & Specific Pain Point -->
-                <div class="gate-item">
-                  <label class="gate-checkbox-label"><b>Q4. Main Growth Goal *</b></label>
-                  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:4px; font-size:11px; margin-bottom:6px;">
-                    <label><input type="checkbox" class="q-goal" value="more_customers" checked onchange="validateGate()"> 3-5+ Jobs / Month</label>
-                    <label><input type="checkbox" class="q-goal" value="google_maps" onchange="validateGate()"> Rank Local 3-Pack</label>
-                    <label><input type="checkbox" class="q-goal" value="new_website" onchange="validateGate()"> Fast Mobile Website</label>
-                    <label><input type="checkbox" class="q-goal" value="social_media" onchange="validateGate()"> Social Media</label>
-                  </div>
-                  <label class="gate-checkbox-label mt-1"><b>Q5. Admitted Friction / Pain Point * (min 15 chars)</b></label>
-                  <input type="text" id="q_pain_point" placeholder="e.g. Phone isn't clickable on mobile, word of mouth dried up" required minlength="15" oninput="validateGate()">
-                </div>
-
-                <!-- Q6, Q7 & Q8: Interest Level, Timeline, Budget -->
-                <div class="gate-item">
-                  <div class="form-row mb-2">
-                    <div class="form-group flex-1" style="margin-bottom:0;">
-                      <label><b>Q6. Interest Level *</b></label>
-                      <select id="q_interest_level" onchange="validateGate()">
-                        <option value="interested" selected>Interested</option>
-                        <option value="actively_looking">Actively Looking</option>
-                        <option value="wants_proposal">Wants Proposal</option>
-                        <option value="ready_to_buy">Ready to Buy</option>
-                        <option value="just_curious">Just Curious (Disqualifies Booking)</option>
-                      </select>
-                    </div>
-                    <div class="form-group flex-1" style="margin-bottom:0;">
-                      <label><b>Q7. Timeline *</b></label>
-                      <select id="q_timeline" onchange="validateGate()">
-                        <option value="within_30_days" selected>Within 30 Days</option>
-                        <option value="ready_now">Ready Now</option>
-                        <option value="1_3_months">1-3 Months</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div class="form-group" style="margin-bottom:0;">
-                    <label><b>Q8. Budget Expectation *</b></label>
-                    <select id="q_budget" onchange="validateGate()">
-                      <option value="unknown" selected>Not Discussed / Free Audit Focus</option>
-                      <option value="500_999">$500 - $999 (Tier 1)</option>
-                      <option value="1000_1999">$1,000 - $1,999 (Custom Build / Retainer)</option>
-                      <option value="2000_plus">$2,000+ (Full Turnkey Infrastructure)</option>
-                    </select>
-                  </div>
-                </div>
-
-                <!-- Q9: Prospect Verbatim Words -->
-                <div class="gate-item">
-                  <label class="gate-checkbox-label"><b>Q9. Prospect Verbatim Words * (min 20 chars)</b></label>
-                  <textarea id="q_prospect_said" rows="2" placeholder="Exact quote of what the prospect said during the diagnostic..." required minlength="20" oninput="validateGate()"></textarea>
-                </div>
-
-                <!-- Mandatory Quality Gate Checklist (G1–G5) -->
-                <div class="gate-item" style="border-left: 3px solid var(--accent);">
-                  <label class="gate-checkbox-label text-accent"><b>Mandatory Quality Gates (G1–G5)</b></label>
-                  <div style="display:flex; flex-direction:column; gap:4px; font-size:11px; margin-top:4px;">
-                    <label><input type="checkbox" id="gate-g1" checked onchange="validateGate()"> <b>G1:</b> Prospect knows this is a business consultation</label>
-                    <label><input type="checkbox" id="gate-g2" checked onchange="validateGate()"> <b>G2:</b> Prospect expressed genuine interest</label>
-                    <label><input type="checkbox" id="gate-g3" onchange="validateGate()"> <b>G3:</b> Agreed to concrete date & time</label>
-                    <label><input type="checkbox" id="gate-g4" onchange="validateGate()"> <b>G4:</b> Knows contact method (Phone / Zoom)</label>
-                    <label><input type="checkbox" id="gate-g5" onchange="validateGate()"> <b>G5:</b> Direct phone/email verified</label>
-                  </div>
-                </div>
-
-                <!-- Scheduling Appointment Fields & Timezone Conversion -->
-                <div class="appointment-scheduling-box">
-                  <h4 class="font-syne text-sm mb-2">Book Qualified Closer Briefing</h4>
-                  
-                  <div class="form-row">
-                    <div class="form-group flex-1">
-                      <label>Prospect Local Date & Time *:</label>
-                      <input type="datetime-local" id="qual-appt-datetime" required onchange="validateGate(); updateTimezonePreview();">
-                    </div>
-                    <div class="form-group" style="width: 95px;">
-                      <label>Prospect TZ:</label>
-                      <select id="qual-appt-tz" onchange="updateTimezonePreview(); validateGate();">
-                        <option value="America/New_York">EST (NY)</option>
-                        <option value="America/Chicago" selected>CST (TX/IL)</option>
-                        <option value="America/Denver">MST (CO)</option>
-                        <option value="America/Los_Angeles">PST (CA)</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <!-- Live Dual-Timezone Preview Banner -->
-                  <div id="tz-live-preview" style="background:var(--bg-elevated); padding:6px 10px; border-radius:4px; font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--accent-light); margin-bottom:8px; border:1px solid var(--border-subtle);">
-                    Select date & time above to preview timezones...
-                  </div>
-
-                  <div class="form-row">
-                    <div class="form-group flex-1">
-                      <label>Platform *:</label>
-                      <select id="qual-appt-platform">
-                        <option value="phone_call" selected>Phone Call (Direct Mobile)</option>
-                        <option value="google_meet">Google Meet Screen Share</option>
-                        <option value="zoom">Zoom Video Conference</option>
-                      </select>
-                    </div>
-                    <div class="form-group flex-1">
-                      <label>Assign Closer *:</label>
-                      <select id="qual-assigned-closer">
-                        <option value="Closer 1">Closer 1 (Senior Systems Engineer)</option>
-                        <option value="Closer 2">Closer 2 (Systems Consultant)</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div class="form-group">
-                    <label>What Was Promised to Prospect:</label>
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:3px; font-size:10.5px;">
-                      <label><input type="checkbox" class="q-comm" value="free_audit" checked> 1-Page PDF Audit</label>
-                      <label><input type="checkbox" class="q-comm" value="website" checked> Mobile Teardown</label>
-                      <label><input type="checkbox" class="q-comm" value="seo"> Google Maps 3-Pack</label>
-                      <label><input type="checkbox" class="q-comm" value="pricing"> Turnkey Pricing</label>
-                    </div>
-                  </div>
-
-                  <button type="submit" id="btn-submit-appointment" class="btn-primary w-full mt-2 btn-disabled" disabled>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                    Lock & Book Qualified Appointment
-                  </button>
-                </div>
-
-              </form>
-
-              <!-- Quick Disposition Actions if Call didn't book -->
-              <div class="quick-dispositions mt-3">
-                <span class="text-xs text-muted block mb-1">Log Call Attempt Outcome (Creates Audit Log & Follow-up Task):</span>
-                <div class="dispo-btn-grid">
-                  <button type="button" class="btn-dispo" onclick="quickLogDisposition('no_answer')">No Answer</button>
-                  <button type="button" class="btn-dispo" onclick="quickLogDisposition('voicemail')">Voicemail</button>
-                  <button type="button" class="btn-dispo" onclick="quickLogDisposition('busy')">Busy / On Job</button>
-                  <button type="button" class="btn-dispo" onclick="quickLogDisposition('callback_requested')">Callback Due</button>
-                  <button type="button" class="btn-dispo" onclick="quickLogDisposition('not_interested')">Not Interested</button>
-                  <button type="button" class="btn-dispo" onclick="quickLogDisposition('dnc')" style="color:var(--rose);">Mark DNC</button>
+                <div class="form-group">
+                  <label class="form-label">Q8. Do you have budget allocated for infrastructure engineering ($500-$1,500+)? *</label>
+                  <select id="q_budget" class="form-control" onchange="evaluateGates()">
+                    <option value="">-- Select Budget State --</option>
+                    <option value="yes_approved">Yes, budget ready for right solution</option>
+                    <option value="need_quote">Need to see formal quote first</option>
+                    <option value="no_budget">Zero budget / Looking for free work</option>
+                  </select>
                 </div>
               </div>
 
+              <!-- Q9: Exact Prospect Quote / Notes -->
+              <div class="form-group">
+                <label class="form-label">Q9. Verbatim Prospect Quote / Specific Nuances</label>
+                <textarea id="q_prospect_said" class="form-control" rows="2" placeholder="e.g. 'We are switching CRM next month and need the leads to push directly via webhook'"></textarea>
+              </div>
+
             </div>
-          </div>
+
+            <!-- APPOINTMENT BOOKING SECTION (GATED) -->
+            <div id="booking-section-container" style="background:#f8fafc; border:1px solid var(--border); border-radius:var(--radius-md); padding:16px; margin-top:14px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <div style="font-weight:700; font-size:14px; color:var(--text-primary);">Book Closer Technical Briefing</div>
+                <div id="gate-lock-status" style="font-size:12px; font-weight:700; color:var(--amber);">Status: Complete Q1-Q9 to Unlock</div>
+              </div>
+
+              <div class="form-grid-2" style="margin-bottom:12px;">
+                <div class="form-group">
+                  <label class="form-label">Appointment Date & Time *</label>
+                  <input type="datetime-local" id="qual-appt-datetime" class="form-control" onchange="updateTimezonePreview()" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Prospect Local Timezone *</label>
+                  <select id="qual-appt-tz" class="form-control" onchange="updateTimezonePreview()">
+                    <option value="America/New_York">Eastern Time (ET)</option>
+                    <option value="America/Chicago" selected>Central Time (CT)</option>
+                    <option value="America/Denver">Mountain Time (MT)</option>
+                    <option value="America/Los_Angeles">Pacific Time (PT)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div id="tz-live-preview" style="font-size:12px; color:var(--text-secondary); background:var(--bg-white); border:1px dashed var(--border); padding:8px 12px; border-radius:6px; margin-bottom:12px;">
+                Dual Timezone: Select date and time above to calculate prospect local time vs UTC.
+              </div>
+
+              <div class="form-grid-2" style="margin-bottom:14px;">
+                <div class="form-group">
+                  <label class="form-label">Meeting Platform</label>
+                  <select id="qual-appt-platform" class="form-control">
+                    <option value="google_meet">Google Meet (Screen Share)</option>
+                    <option value="phone">Direct Phone Call</option>
+                    <option value="zoom">Zoom</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Assign Senior Closer</label>
+                  <select id="qual-assigned-closer" class="form-control">
+                    <option value="user-closer-1">Abdul Rehman (Senior Systems Architect)</option>
+                    <option value="user-closer-2">Jordan Vance (Solutions Engineer)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group" style="margin-bottom:16px;">
+                <label class="form-label">Meeting Confirmation Channel</label>
+                <div class="checkbox-group">
+                  <label class="checkbox-tile"><input type="checkbox" class="q-comm" value="calendar_invite" checked> Send Google Calendar Invite</label>
+                  <label class="checkbox-tile"><input type="checkbox" class="q-comm" value="sms_reminder" checked> Send SMS Reminder (1 Hour Prior)</label>
+                  <label class="checkbox-tile"><input type="checkbox" class="q-comm" value="email_audit" checked> Attach 1-Page PDF Forensic Audit</label>
+                </div>
+              </div>
+
+              <button type="submit" id="btn-submit-appointment" class="btn btn-success" style="width:100%; font-size:14px; padding:11px;">Lock Qualification & Book Closer Briefing</button>
+            </div>
+
+          </form>
 
         </div>
-      </section>
+      </div>
 
-      <!-- VIEW 2: CLOSER QUEUE & 1-PAGE DOSSIERS -->
-      <section id="closer-view" class="view-panel">
-        <div class="closer-layout">
-          
-          <div class="closer-header-bar">
-            <div>
-              <h2 class="font-syne text-xl">Closer Execution Command</h2>
-              <p class="text-xs text-muted">All appointments booked by callers with mandatory 4-point qualification dossiers.</p>
-            </div>
-            <div class="closer-filters">
-              <button class="filter-pill active" onclick="filterAppointments('all')">All Appointments</button>
-              <button class="filter-pill" onclick="filterAppointments('Scheduled')">Upcoming / Scheduled</button>
-              <button class="filter-pill" onclick="filterAppointments('Showed / Pitched')">Pitched</button>
-              <button class="filter-pill" onclick="filterAppointments('Won / Closed')">Won / Closed</button>
-            </div>
-          </div>
-
-          <div class="closer-cards-grid" id="closer-appointments-grid">
-            <div class="empty-state">No appointments booked yet.</div>
-          </div>
-
-        </div>
-      </section>
-
-      <!-- VIEW 3: LEAD PIPELINE & CSV INGESTOR -->
-      <section id="leads-view" class="view-panel">
-        <div class="leads-layout">
-          
-          <div class="leads-header-bar">
-            <div>
-              <h2 class="font-syne text-xl">Cold Call Lead Pipeline</h2>
-              <p class="text-xs text-muted">Manage, assign, and upload CSV lists of contractors and trade leads.</p>
-            </div>
-            <div class="leads-actions">
-              <button class="btn-secondary" onclick="openCsvImportModal()">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                Import CSV Leads
-              </button>
-              <button class="btn-primary" onclick="openAddLeadModal()">+ Add Single Lead</button>
-            </div>
-          </div>
-
-          <div class="leads-table-container">
-            <table class="data-table" id="leads-data-table">
-              <thead>
-                <tr>
-                  <th>Business Name</th>
-                  <th>Contact</th>
-                  <th>Phone</th>
-                  <th>City / State</th>
-                  <th>Status</th>
-                  <th>Assigned Caller</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody id="leads-table-body">
-                <tr>
-                  <td colspan="7" class="text-center py-6">Loading leads...</td>
-                </tr>
-              </tbody>
-            </table>
+      <!-- STEP 5: LOG DISPOSITION / OUTCOME -->
+      <div class="step-card">
+        <div class="step-header">
+          <div class="step-badge step-red">5</div>
+          <div class="step-title-wrap">
+            <div class="step-title">Log Call Disposition & Next Action</div>
+            <div class="step-sub">If prospect did not book an appointment, log the outcome to update CRM records.</div>
           </div>
         </div>
-      </section>
-
-      <!-- VIEW 4: TASKS & CALLBACKS -->
-      <section id="tasks-view" class="view-panel">
-        <div class="leads-layout">
-          <div class="leads-header-bar">
-            <div>
-              <h2 class="font-syne text-xl">Task Queue & Scheduled Callbacks</h2>
-              <p class="text-xs text-muted">Automated reminders, missed appointment recoveries, and scheduled prospect callbacks.</p>
+        <div class="step-body">
+          <form onsubmit="handleCallDisposition(event)">
+            
+            <div class="form-grid-3" style="margin-bottom:12px;">
+              <div class="form-group">
+                <label class="form-label">Call Outcome *</label>
+                <select id="disp-outcome" class="form-control" required>
+                  <option value="">-- Select Outcome --</option>
+                  <option value="no_answer">No Answer / Ring Out</option>
+                  <option value="voicemail">Left Voicemail</option>
+                  <option value="gatekeeper_blocked">Gatekeeper Blocked</option>
+                  <option value="callback_requested">Callback Requested</option>
+                  <option value="not_interested">Not Interested / Disqualified</option>
+                  <option value="dnc">Do Not Call (DNC)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Follow-up / Callback Date</label>
+                <input type="datetime-local" id="disp-next-action" class="form-control">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Objection Encountered</label>
+                <select id="disp-objection" class="form-control">
+                  <option value="none">None</option>
+                  <option value="busy">Busy / On Job Site</option>
+                  <option value="send_email">Just Send Email</option>
+                  <option value="have_a_guy">Already Have a Web Guy</option>
+                  <option value="cost">Cost / Price Resistance</option>
+                </select>
+              </div>
             </div>
-            <div class="closer-filters">
-              <button class="filter-pill active" onclick="filterTasks('all')">All Tasks</button>
-              <button class="filter-pill" onclick="filterTasks('open')">Open / Due</button>
-              <button class="filter-pill" onclick="filterTasks('callback')">Callbacks</button>
-              <button class="filter-pill" onclick="filterTasks('recovery')">No-Show Recoveries</button>
-            </div>
-          </div>
 
-          <div class="leads-table-container">
-            <table class="data-table" id="tasks-data-table">
-              <thead>
-                <tr>
-                  <th>Task Title / Action</th>
-                  <th>Type</th>
-                  <th>Priority</th>
-                  <th>Due Time (UTC / Local)</th>
-                  <th>Assigned To</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody id="tasks-table-body">
-                <tr>
-                  <td colspan="7" class="text-center py-6">No tasks due today.</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+            <div class="form-group" style="margin-bottom:14px;">
+              <label class="form-label">Call Notes / Summary</label>
+              <textarea id="disp-notes" class="form-control" rows="2" placeholder="Summary of what the prospect said..."></textarea>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end;">
+              <button type="submit" class="btn btn-primary">Save Call Disposition</button>
+            </div>
+
+          </form>
         </div>
-      </section>
-
-      <!-- VIEW 5: KNOWLEDGE BASE & PRICING RULES -->
-      <section id="kb-view" class="view-panel">
-        <div class="leads-layout">
-          <div class="leads-header-bar">
-            <div>
-              <h2 class="font-syne text-xl">Official Pricing & Offer Knowledge Base</h2>
-              <p class="text-xs text-muted">Standard and minimum price floors. Do not quote below minimum without admin approval.</p>
-            </div>
-          </div>
-
-          <div class="closer-cards-grid" id="kb-cards-container">
-            <div class="dossier-card" style="border-top: 3px solid var(--accent);">
-              <div class="dossier-top">
-                <div>
-                  <h3 class="font-syne">Website Design & Hand-Coded Architecture</h3>
-                  <span class="text-xs text-muted">Full custom build (sub-0.8s load speed)</span>
-                </div>
-                <span class="dossier-time-badge" style="background:var(--emerald-glow); color:var(--emerald); border-color:var(--emerald);">$1,399.00</span>
-              </div>
-              <div class="dossier-metrics-list">
-                <span>Standard Price: <b>$1,399.00 (One-Time)</b></span>
-                <span>Minimum Price Floor: <b class="text-rose">$999.00</b></span>
-                <span>Billing: <b>50% upfront, 50% on completion</b></span>
-              </div>
-              <p class="text-xs text-muted">Includes custom PHP/HTML architecture, instant SMS webhook routing, and Google Maps Local SEO integration.</p>
-            </div>
-
-            <div class="dossier-card" style="border-top: 3px solid var(--emerald);">
-              <div class="dossier-top">
-                <div>
-                  <h3 class="font-syne">Website SEO + Google Maps 3-Pack (Combined)</h3>
-                  <span class="text-xs text-muted">Top-of-funnel organic + local pack engine</span>
-                </div>
-                <span class="dossier-time-badge" style="background:var(--emerald-glow); color:var(--emerald); border-color:var(--emerald);">$800.00/mo</span>
-              </div>
-              <div class="dossier-metrics-list">
-                <span>Standard Price: <b>$800.00 / month</b></span>
-                <span>Minimum Price Floor: <b class="text-rose">$600.00 / month</b></span>
-                <span>Billing: <b>Monthly recurring</b></span>
-              </div>
-              <p class="text-xs text-muted">Includes schema graph validation, monthly striking-distance keyword expansion, and citation syndication.</p>
-            </div>
-
-            <div class="dossier-card" style="border-top: 3px solid var(--amber);">
-              <div class="dossier-top">
-                <div>
-                  <h3 class="font-syne">Single Track: Website SEO OR Local Maps Only</h3>
-                  <span class="text-xs text-muted">Focused single-discipline optimization</span>
-                </div>
-                <span class="dossier-time-badge" style="background:var(--emerald-glow); color:var(--emerald); border-color:var(--emerald);">$400.00/mo</span>
-              </div>
-              <div class="dossier-metrics-list">
-                <span>Standard Price: <b>$400.00 / month</b></span>
-                <span>Minimum Price Floor: <b class="text-rose">$300.00 / month</b></span>
-                <span>Billing: <b>Monthly recurring</b></span>
-              </div>
-              <p class="text-xs text-muted">One track only (Google Maps Business Profile rank or on-page technical speed/rank).</p>
-            </div>
-
-            <div class="dossier-card" style="border-top: 3px solid var(--accent-light);">
-              <div class="dossier-top">
-                <div>
-                  <h3 class="font-syne">Full Social Media Management</h3>
-                  <span class="text-xs text-muted">Contractor branding & proof posts</span>
-                </div>
-                <span class="dossier-time-badge" style="background:var(--emerald-glow); color:var(--emerald); border-color:var(--emerald);">$1,000.00/mo</span>
-              </div>
-              <div class="dossier-metrics-list">
-                <span>Standard Price: <b>$1,000.00 / month</b></span>
-                <span>Minimum Price Floor: <b class="text-rose">$800.00 / month</b></span>
-                <span>Billing: <b>Monthly recurring</b></span>
-              </div>
-              <p class="text-xs text-muted">Includes 12 monthly custom project graphics, case study copywriting, and multi-channel scheduling.</p>
-            </div>
-          </div>
-        </div>
-      </section>
+      </div>
 
     </main>
+
+    <!-- CLOSER HUB VIEW -->
+    <main id="closer-view" class="view-panel">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <div>
+          <h2 style="font-size:18px; font-weight:800;">Closer Command Hub</h2>
+          <p style="font-size:13px; color:var(--text-secondary);">Scheduled prospect briefings with full Q1-Q9 qualification dossiers.</p>
+        </div>
+        <button class="btn btn-outline" onclick="fetchAppointments()">Refresh Appointments</button>
+      </div>
+
+      <div id="closer-appointments-grid" style="display:flex; flex-direction:column; gap:12px;">
+        <div style="text-align:center; padding:30px; color:var(--text-secondary); background:var(--bg-white); border:1px solid var(--border); border-radius:var(--radius-md);">
+          No scheduled briefings found. Fully qualified appointments booked in Caller Studio will appear here.
+        </div>
+      </div>
+    </main>
+
+    <!-- TASKS & CALLBACKS VIEW -->
+    <main id="tasks-view" class="view-panel">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <div>
+          <h2 style="font-size:18px; font-weight:800;">Tasks & Callbacks</h2>
+          <p style="font-size:13px; color:var(--text-secondary);">Automated callbacks and manual SDR follow-up actions.</p>
+        </div>
+        <button class="btn btn-outline" onclick="fetchTasks()">Refresh Tasks</button>
+      </div>
+
+      <div class="data-table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Task Title</th>
+              <th>Type</th>
+              <th>Due Date</th>
+              <th>Priority</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="tasks-table-body">
+            <tr>
+              <td colspan="6" style="text-align:center; color:var(--text-secondary); padding:24px;">No pending tasks or callbacks.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+
+    <!-- ALL LEADS VIEW -->
+    <main id="leads-view" class="view-panel">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <div>
+          <h2 style="font-size:18px; font-weight:800;">Leads Master Database</h2>
+          <p style="font-size:13px; color:var(--text-secondary);">All prospect records across the organization.</p>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-outline" onclick="openCsvModal()">Import CSV</button>
+          <button class="btn btn-primary" onclick="openAddLeadModal()">+ Add Lead</button>
+        </div>
+      </div>
+
+      <div class="data-table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Business Name</th>
+              <th>Contact</th>
+              <th>Phone</th>
+              <th>Location</th>
+              <th>Status</th>
+              <th>Created</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="leads-table-body">
+            <tr>
+              <td colspan="7" style="text-align:center; color:var(--text-secondary); padding:24px;">No leads found.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+
+    <!-- KNOWLEDGE BASE VIEW -->
+    <main id="kb-view" class="view-panel">
+      <div style="margin-bottom:16px;">
+        <h2 style="font-size:18px; font-weight:800;">Knowledge Base & Engineering Reference</h2>
+        <p style="font-size:13px; color:var(--text-secondary);">Core technical positioning rules, objections, and delivery standards.</p>
+      </div>
+
+      <div class="step-card">
+        <div class="step-header">
+          <div class="step-title">Core Systems Engineering Positioning</div>
+        </div>
+        <div class="step-body" style="font-size:13.5px; line-height:1.6; display:flex; flex-direction:column; gap:12px;">
+          <div>
+            <b>1. Never pitch generic web design or SEO marketing:</b><br>
+            Contractors get 50 spam emails a day from agencies promising "more leads" and "SEO rankings". Position strictly as systems and performance engineers auditing mobile infrastructure flaws.
+          </div>
+          <div>
+            <b>2. The Core Technical Hook:</b><br>
+            "When a homeowner has a leaking roof or broken AC, they search on a 5G mobile phone. If your website takes 4.5 seconds to load or your phone number isn't a 1-tap clickable button, they tap back and call the next contractor on Google Maps."
+          </div>
+          <div>
+            <b>3. Concrete Deliverables Only (Never Promise Loom):</b><br>
+            Always offer our 1-Page Forensic Mobile Latency PDF Audit or Sub-0.8s Architecture Blueprint. Never promise Loom videos or screen recording links.
+          </div>
+        </div>
+      </div>
+    </main>
+
   </div>
 
-  <!-- ======================================================== -->
-  <!-- MODALS -->
-  <!-- ======================================================== -->
-
-  <!-- Add Lead Modal -->
-  <div class="modal-backdrop" id="add-lead-modal">
-    <div class="modal-card">
+  <!-- ADD LEAD MODAL -->
+  <div id="add-lead-modal" class="modal-backdrop">
+    <div class="modal-box">
       <div class="modal-header">
-        <h3 class="font-syne">Add New Cold Lead</h3>
-        <button class="modal-close" onclick="closeAddLeadModal()">&times;</button>
+        <div class="modal-title">Add New Prospect Lead</div>
+        <button class="modal-close" onclick="closeAddLeadModal()">✕</button>
       </div>
       <form onsubmit="handleCreateLead(event)">
-        <div class="form-group mb-2">
-          <label>Business / Company Name *</label>
-          <input type="text" id="new-lead-biz" placeholder="e.g. Apex Contracting" required>
+        <div class="form-group" style="margin-bottom:10px;">
+          <label class="form-label">Business Name *</label>
+          <input type="text" id="new-lead-biz" class="form-control" placeholder="Apex Roofing Pros" required>
         </div>
-        <div class="form-group mb-2">
-          <label>Contact / Owner Name</label>
-          <input type="text" id="new-lead-contact" placeholder="e.g. Jordan Hayes">
+        <div class="form-group" style="margin-bottom:10px;">
+          <label class="form-label">Contact Person</label>
+          <input type="text" id="new-lead-contact" class="form-control" placeholder="John Miller (Owner)">
         </div>
-        <div class="form-row mb-2">
-          <div class="form-group flex-1">
-            <label>Phone Number *</label>
-            <input type="tel" id="new-lead-phone" placeholder="e.g. (555) 019-2834" required>
-          </div>
-          <div class="form-group flex-1">
-            <label>Website URL</label>
-            <input type="text" id="new-lead-web" placeholder="e.g. apexcontracting.com">
-          </div>
+        <div class="form-group" style="margin-bottom:10px;">
+          <label class="form-label">Phone Number *</label>
+          <input type="tel" id="new-lead-phone" class="form-control" placeholder="(512) 555-0199" required>
         </div>
-        <div class="form-row mb-3">
-          <div class="form-group flex-1">
-            <label>City</label>
-            <input type="text" id="new-lead-city" placeholder="e.g. Austin">
+        <div class="form-group" style="margin-bottom:10px;">
+          <label class="form-label">Website URL</label>
+          <input type="text" id="new-lead-web" class="form-control" placeholder="apexroofingtx.com">
+        </div>
+        <div class="form-grid-2" style="margin-bottom:14px;">
+          <div class="form-group">
+            <label class="form-label">City</label>
+            <input type="text" id="new-lead-city" class="form-control" placeholder="Austin">
           </div>
-          <div class="form-group flex-1">
-            <label>State</label>
-            <input type="text" id="new-lead-state" placeholder="e.g. TX">
+          <div class="form-group">
+            <label class="form-label">State</label>
+            <input type="text" id="new-lead-state" class="form-control" placeholder="TX" maxlength="2">
           </div>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn-ghost" onclick="closeAddLeadModal()">Cancel</button>
-          <button type="submit" class="btn-primary">Add to Call Queue</button>
+        <div style="display:flex; justify-content:flex-end; gap:8px;">
+          <button type="button" class="btn btn-outline" onclick="closeAddLeadModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Lead</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- CSV Import Modal -->
-  <div class="modal-backdrop" id="csv-modal">
-    <div class="modal-card">
+  <!-- CSV IMPORT MODAL -->
+  <div id="csv-modal" class="modal-backdrop">
+    <div class="modal-box">
       <div class="modal-header">
-        <h3 class="font-syne">Import CSV Leads</h3>
-        <button class="modal-close" onclick="closeCsvModal()">&times;</button>
+        <div class="modal-title">Import Leads via CSV</div>
+        <button class="modal-close" onclick="closeCsvModal()">✕</button>
       </div>
-      <p class="text-xs text-muted mb-3">
-        Upload a CSV file containing columns like: <code>Business Name, Phone, Contact Name, Website, City, State</code>.
-      </p>
-      <input type="file" id="csv-file-input" accept=".csv" class="mb-4">
-      <div class="modal-footer">
-        <button type="button" class="btn-ghost" onclick="closeCsvModal()">Cancel</button>
-        <button type="button" class="btn-primary" onclick="processCsvUpload()">Upload & Ingest Leads</button>
+      <div style="margin-bottom:14px; font-size:13px; color:var(--text-secondary);">
+        Upload a CSV file containing prospect leads. Expected columns: <code>business_name, contact_name, phone, website, city, state</code>.
+      </div>
+      <input type="file" id="csv-file-input" accept=".csv" class="form-control" style="margin-bottom:16px;">
+      <div style="display:flex; justify-content:flex-end; gap:8px;">
+        <button type="button" class="btn btn-outline" onclick="closeCsvModal()">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="handleCsvUpload()">Upload & Import</button>
       </div>
     </div>
   </div>
 
-  <!-- Closer Dossier & Update Modal -->
-  <div class="modal-backdrop" id="dossier-modal">
-    <div class="modal-card modal-lg">
+  <!-- DOSSIER MODAL -->
+  <div id="dossier-modal" class="modal-backdrop">
+    <div class="modal-box" style="max-width:680px;">
       <div class="modal-header">
-        <h3 class="font-syne" id="dossier-title">Appointment Dossier</h3>
-        <button class="modal-close" onclick="closeDossierModal()">&times;</button>
+        <div class="modal-title" id="dossier-title">Prospect Briefing Dossier</div>
+        <button class="modal-close" onclick="closeDossierModal()">✕</button>
       </div>
-      <div id="dossier-content" class="dossier-body">
-        <!-- Rendered dynamically -->
+      <div id="dossier-content" class="dossier-modal-inner" style="max-height:70vh; overflow-y:auto; font-size:13px; line-height:1.6;">
+        Loading qualification dossier...
       </div>
     </div>
   </div>
 
-  <!-- Toast Notification -->
-  <div id="toast" class="toast"></div>
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast" class="toast-box"></div>
 
-  <script src="app.js?v=20261001_1"></script>
+  <!-- Scripts -->
+  <script src="app.js"></script>
+  <script>
+    // Inline Lead Creation Handler for Step 1
+    async function handleCreateLeadInline(e) {
+      e.preventDefault();
+      const biz = document.getElementById('inline-lead-biz').value.trim();
+      const contact = document.getElementById('inline-lead-contact').value.trim();
+      const phone = document.getElementById('inline-lead-phone').value.trim();
+      const web = document.getElementById('inline-lead-web').value.trim();
+      const city = document.getElementById('inline-lead-city').value.trim();
+      const state = document.getElementById('inline-lead-state').value.trim();
+
+      if (!biz || !phone) {
+        showToast('Business name and phone are required.');
+        return;
+      }
+
+      if (supabaseClient) {
+        try {
+          const { data, error } = await supabaseClient.from('leads').insert([{
+            business_name: biz,
+            contact_name: contact,
+            phone: phone,
+            website: web,
+            city: city,
+            state: state,
+            status: 'new',
+            created_at: new Date().toISOString()
+          }]).select();
+
+          if (error) throw error;
+          
+          showToast('Saved ' + biz + ' to your queue!');
+          
+          // Clear inputs
+          document.getElementById('inline-lead-biz').value = '';
+          document.getElementById('inline-lead-contact').value = '';
+          document.getElementById('inline-lead-phone').value = '';
+          document.getElementById('inline-lead-web').value = '';
+          document.getElementById('inline-lead-city').value = '';
+          document.getElementById('inline-lead-state').value = '';
+
+          await fetchLeads();
+          if (data && data[0]) {
+            selectLeadToCall(data[0].id);
+          }
+        } catch (err) {
+          console.error('Failed to create lead:', err);
+          showToast('Error saving lead: ' + err.message);
+        }
+      } else {
+        showToast('Database not connected. Lead saved locally.');
+      }
+    }
+  </script>
 </body>
 </html>
