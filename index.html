@@ -923,6 +923,16 @@
                 <input type="tel" id="inline-lead-phone" class="form-control" placeholder="e.g. (512) 555-0199" required>
               </div>
             </div>
+            <div class="form-grid-2" style="margin-bottom:12px;">
+              <div class="form-group">
+                <label class="form-label">Facebook Page URL</label>
+                <input type="text" id="inline-lead-fb" class="form-control" placeholder="e.g. facebook.com/apexroofingtx">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Email Address</label>
+                <input type="email" id="inline-lead-email" class="form-control" placeholder="e.g. contact@apexroofingtx.com">
+              </div>
+            </div>
             <div class="form-grid-3" style="margin-bottom:14px;">
               <div class="form-group">
                 <label class="form-label">Website URL</label>
@@ -982,7 +992,10 @@
               <div class="active-lead-details">
                 <span>Contact: <b id="active-biz-contact">—</b></span>
                 <span>Phone: <b id="active-biz-phone">—</b></span>
+                <span>Email: <b id="active-biz-email">—</b></span>
                 <span>Location: <b id="active-biz-city">—</b></span>
+                <span id="active-biz-fb-wrap" style="display:none;">FB: <a id="active-biz-fb-link" href="#" target="_blank" style="color:var(--accent); text-decoration:underline;">View Page</a></span>
+                <span id="active-biz-web-wrap" style="display:none;">Web: <a id="active-biz-web-link" href="#" target="_blank" style="color:var(--accent); text-decoration:underline;">Visit Site</a></span>
               </div>
             </div>
             <div class="active-lead-actions">
@@ -1390,6 +1403,14 @@
           <input type="tel" id="new-lead-phone" class="form-control" placeholder="(512) 555-0199" required>
         </div>
         <div class="form-group" style="margin-bottom:10px;">
+          <label class="form-label">Facebook Page URL</label>
+          <input type="text" id="new-lead-fb" class="form-control" placeholder="facebook.com/apexroofingtx">
+        </div>
+        <div class="form-group" style="margin-bottom:10px;">
+          <label class="form-label">Email Address</label>
+          <input type="email" id="new-lead-email" class="form-control" placeholder="contact@apexroofingtx.com">
+        </div>
+        <div class="form-group" style="margin-bottom:10px;">
           <label class="form-label">Website URL</label>
           <input type="text" id="new-lead-web" class="form-control" placeholder="apexroofingtx.com">
         </div>
@@ -1454,6 +1475,8 @@
       const biz = document.getElementById('inline-lead-biz').value.trim();
       const contact = document.getElementById('inline-lead-contact').value.trim();
       const phone = document.getElementById('inline-lead-phone').value.trim();
+      const fb = document.getElementById('inline-lead-fb').value.trim();
+      const email = document.getElementById('inline-lead-email').value.trim();
       const web = document.getElementById('inline-lead-web').value.trim();
       const city = document.getElementById('inline-lead-city').value.trim();
       const state = document.getElementById('inline-lead-state').value.trim();
@@ -1469,9 +1492,12 @@
             business_name: biz,
             contact_name: contact,
             phone: phone,
+            facebook_url: fb,
+            email: email,
             website: web,
             city: city,
             state: state,
+            source: 'facebook',
             status: 'new',
             created_at: new Date().toISOString()
           }]).select();
@@ -1484,6 +1510,8 @@
           document.getElementById('inline-lead-biz').value = '';
           document.getElementById('inline-lead-contact').value = '';
           document.getElementById('inline-lead-phone').value = '';
+          document.getElementById('inline-lead-fb').value = '';
+          document.getElementById('inline-lead-email').value = '';
           document.getElementById('inline-lead-web').value = '';
           document.getElementById('inline-lead-city').value = '';
           document.getElementById('inline-lead-state').value = '';

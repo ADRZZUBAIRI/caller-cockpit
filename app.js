@@ -342,6 +342,39 @@ function selectLeadToCall(leadId) {
   document.getElementById('active-biz-contact').textContent = selectedLead.contact_name || 'Owner / Manager';
   document.getElementById('active-biz-city').textContent = (selectedLead.city ? selectedLead.city + ', ' : '') + (selectedLead.state || 'TX');
   
+  const emailEl = document.getElementById('active-biz-email');
+  if (emailEl) emailEl.textContent = selectedLead.email || '—';
+
+  const fbWrap = document.getElementById('active-biz-fb-wrap');
+  const fbLink = document.getElementById('active-biz-fb-link');
+  if (fbWrap && fbLink) {
+    if (selectedLead.facebook_url) {
+      let fbHref = selectedLead.facebook_url;
+      if (!fbHref.startsWith('http://') && !fbHref.startsWith('https://')) {
+        fbHref = 'https://' + fbHref;
+      }
+      fbLink.href = fbHref;
+      fbWrap.style.display = 'inline';
+    } else {
+      fbWrap.style.display = 'none';
+    }
+  }
+
+  const webWrap = document.getElementById('active-biz-web-wrap');
+  const webLink = document.getElementById('active-biz-web-link');
+  if (webWrap && webLink) {
+    if (selectedLead.website) {
+      let webHref = selectedLead.website;
+      if (!webHref.startsWith('http://') && !webHref.startsWith('https://')) {
+        webHref = 'https://' + webHref;
+      }
+      webLink.href = webHref;
+      webWrap.style.display = 'inline';
+    } else {
+      webWrap.style.display = 'none';
+    }
+  }
+  
   const cleanPhone = (selectedLead.phone || '').replace(/[^0-9]/g, '');
   document.getElementById('active-biz-tel-link').href = `tel:${cleanPhone}`;
 
@@ -1083,9 +1116,12 @@ async function handleCreateLead(e) {
     business_name: document.getElementById('new-lead-biz').value.trim(),
     contact_name: document.getElementById('new-lead-contact').value.trim(),
     phone: document.getElementById('new-lead-phone').value.trim(),
+    facebook_url: document.getElementById('new-lead-fb')?.value.trim() || '',
+    email: document.getElementById('new-lead-email')?.value.trim() || '',
     website: document.getElementById('new-lead-web').value.trim(),
     city: document.getElementById('new-lead-city').value.trim(),
     state: document.getElementById('new-lead-state').value.trim() || 'TX',
+    source: 'facebook',
     status: 'new',
     created_at: new Date().toISOString()
   };
